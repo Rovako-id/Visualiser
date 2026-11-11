@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="version" content="2026-11-11">
+<!-- Version 11-11 (11 November 2026) -->
+<title>Glass Catalogue</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Catalogue manager for the Glassware Visualiser: edits glasses.json in the browser and hands it back as a download. */
+:root {
+  --bg: #e4e6e8; --panel: #b2b6ba; --field: #cdd0d4; --chip: #dde0e3; --fg: #1b1f23; --muted: #30363b;
+  --line: #8d9296; --frame-line: #9a9ea2; --accent: #2b2f33; --accent-fg: #ffffff;
+  --warn-bg: #f3dfb4; --warn-fg: #4a3400; --band: #2b6cb0;
+  --font-ui: "Familjen Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101113; --panel: #1d1f22; --field: #26292d; --chip: #31353a; --fg: #e6e8ea; --muted: #9ba1a7;
+    --line: #3a3e43; --frame-line: #2a2d30; --accent: #e6e8ea; --accent-fg: #101113;
+    --warn-bg: #4a3a12; --warn-fg: #f6e3b0; --band: #7fb2e8;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101113; --panel: #1d1f22; --field: #26292d; --chip: #31353a; --fg: #e6e8ea; --muted: #9ba1a7;
+  --line: #3a3e43; --frame-line: #2a2d30; --accent: #e6e8ea; --accent-fg: #101113;
+  --warn-bg: #4a3a12; --warn-fg: #f6e3b0; --band: #7fb2e8;
+  color-scheme: dark;
+}
+html { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--fg); font: 14px/1.45 var(--font-ui);
+  padding-block: 20px 60px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 16px; }
+.top { display: flex; flex-wrap: wrap; gap: 14px 24px; align-items: flex-end; justify-content: space-between; }
+.top > div { min-width: 0; }
+h1 { margin: 0; font-size: 24px; letter-spacing: -0.02em; line-height: 1.15; }
+.lede { margin: 6px 0 0; color: var(--muted); max-width: 60ch; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn {
+  font: 600 13px var(--font-ui); padding: 8px 14px; border-radius: 9px; cursor: pointer; text-decoration: none;
+  border: 1px solid var(--line); background: var(--field); color: var(--fg); display: inline-flex; align-items: center; gap: 7px;
+}
+.btn:hover { background: var(--chip); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.btn.primary:hover { filter: brightness(1.1); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center;
+  background: var(--panel); border: 1px solid var(--frame-line); border-radius: 14px; padding: 10px 12px;
+}
+.bar input[type="search"] { flex: 1 1 200px; min-width: 0; }
+input[type="search"], input[type="text"], input[type="number"], select {
+  font: inherit; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--line); background: var(--field); color: var(--fg); min-width: 0;
+}
+input[aria-invalid="true"] { border-color: #b3261e; box-shadow: 0 0 0 1px #b3261e; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip {
+  font: 500 12px var(--font-ui); padding: 5px 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--field); color: var(--fg);
+}
+.chip:hover { background: var(--chip); }
+.chip[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--accent-fg); }
+.chip .n { font: 500 11px var(--font-mono); opacity: 0.75; margin-left: 4px; }
+.units { display: flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); flex: none; }
+.units button { font: 600 12px var(--font-mono); padding: 4px 9px; border: 0; border-radius: 6px; background: transparent; color: var(--fg); cursor: pointer; }
+.units button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
+.status { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; min-height: 24px; color: var(--muted); }
+.status .dirty { font: 600 11px var(--font-ui); letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: var(--warn-bg); color: var(--warn-fg); }
+.status button { font: inherit; font-weight: 600; background: none; border: 0; padding: 0; color: var(--fg); text-decoration: underline; cursor: pointer; }
+
+.list { display: grid; gap: 10px; }
+.card {
+  display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 14px; align-items: start;
+  background: var(--panel); border: 1px solid var(--frame-line); border-radius: 14px; padding: 12px;
+}
+.card.bad { border-color: #b3261e; }
+.thumb { width: 96px; height: 132px; border-radius: 9px; background: var(--field); border: 1px solid var(--line); display: block; color: var(--fg); }
+.fields { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px; min-width: 0; }
+.f { display: grid; gap: 3px; min-width: 0; }
+.f > span { font: 600 10px var(--font-ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.f input { width: 100%; }
+.f.name { grid-column: span 5; } .f.code { grid-column: span 4; } .f.cap { grid-column: span 3; }
+.f.type { grid-column: span 6; } .f.lo, .f.hi, .f.gap { grid-column: span 2; }
+.f.code input, .f.cap input, .f.lo input, .f.hi input, .f.gap input { font-family: var(--font-mono); font-size: 13px; }
+.seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; padding: 3px; border: 1px solid var(--line); border-radius: 9px; background: var(--field); }
+.seg button { font: 600 12px var(--font-ui); padding: 5px 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border: 0; border-radius: 6px; background: transparent; color: var(--fg); cursor: pointer; }
+.seg button:hover { background: var(--chip); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-fg); }
+.meta { grid-column: 1 / -1; font: 500 12px var(--font-mono); color: var(--muted); overflow-wrap: anywhere; }
+.problems { grid-column: 1 / -1; margin: 0; padding: 6px 10px; border-radius: 8px; background: var(--warn-bg); color: var(--warn-fg); font-size: 13px; }
+.rowact { display: grid; gap: 6px; }
+.icon {
+  width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--field); color: var(--fg);
+}
+.icon:hover { background: var(--chip); }
+.icon:disabled { opacity: 0.35; cursor: default; }
+.empty {
+  border: 2px dashed var(--line); border-radius: 14px; padding: 36px 20px; text-align: center; color: var(--muted);
+}
+.empty strong { display: block; color: var(--fg); font-size: 16px; margin-bottom: 4px; }
+body.dropping .wrap { outline: 3px dashed var(--accent); outline-offset: 8px; border-radius: 14px; }
+.copybox { width: 100%; height: 160px; font: 12px var(--font-mono); padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--field); color: var(--fg); }
+
+@media (max-width: 720px) {
+  .card { grid-template-columns: 72px minmax(0, 1fr); }
+  .thumb { width: 72px; height: 100px; }
+  .rowact { grid-column: 1 / -1; grid-auto-flow: column; justify-content: end; }
+  .f.name, .f.code, .f.type { grid-column: 1 / -1; }
+  .f.cap { grid-column: 1 / -1; } .f.lo, .f.hi, .f.gap { grid-column: span 4; }
+}
+body { margin: 0; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Glass Catalogue</h1>
+      <p class="lede">Add exported glasses, set each one's type, capacity and print area, then download <code>glasses.json</code> and upload it next to the visualiser.</p>
+    </div>
+    <div class="actions">
+      <button class="btn" id="addBtn" type="button">Add glasses…</button>
+      <input id="addFile" type="file" accept=".json,application/json" multiple hidden>
+      <button class="btn" id="copyBtn" type="button">Copy JSON</button>
+      <button class="btn primary" id="saveBtn" type="button">Download glasses.json</button>
+    </div>
+  </header>
+
+  <div class="bar">
+    <input type="search" id="q" placeholder="Search by name, code or capacity" aria-label="Search glasses" autocomplete="off">
+    <div class="chips" id="tabs" role="group" aria-label="Show type"></div>
+    <div class="units" id="units" role="group" aria-label="Units shown">
+      <button type="button" data-units="metric" aria-pressed="true" title="Millimetres and millilitres">mm</button>
+      <button type="button" data-units="imperial" aria-pressed="false" title="Inches and US fluid ounces">in</button>
+    </div>
+    <select id="order" aria-label="Reorder the catalogue">
+      <option value="">Reorder catalogue by…</option>
+      <option value="cap">Capacity, small to large</option>
+      <option value="capd">Capacity, large to small</option>
+      <option value="name">Name, A to Z</option>
+      <option value="type">Type, then capacity</option>
+    </select>
+  </div>
+
+  <div class="status" id="status" aria-live="polite"></div>
+  <textarea class="copybox" id="copyBox" readonly hidden aria-label="Catalogue JSON"></textarea>
+  <div class="list" id="list"></div>
+  <div class="empty" id="empty" hidden><strong>No glasses yet</strong>Drop one or more exported <code>.json</code> files anywhere on this page, or use "Add glasses…".</div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var el = function (tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+  var num = function (v) { v = parseFloat(v); return isFinite(v) ? v : null; };
+  var r1 = function (v) { return Math.round(v * 10) / 10; };
+
+  /* ---------- Units for the read-outs. The boxes are always typed in mm and ml, as in the file. ---------- */
+  var units = 'metric';
+  try { if (localStorage.getItem('gv-units') === 'imperial') units = 'imperial'; } catch (e) {}
+  function frac(v, den) {
+    var n = Math.round(v * den), w = Math.floor(n / den), r = n - w * den, a = r, b = den;
+    if (!r) return String(w);
+    while (b) { var t = a % b; a = b; b = t; }
+    return (w ? w + ' ' : '') + (r / a) + '/' + (den / a);
+  }
+  function flOz(ml) {                     /* US fl oz, rounded up so a glass is never undersold: whole ounces, or quarters under 4 oz */
+    var oz = ml / 29.5735, step = oz < 4 ? 4 : 1;
+    return frac(Math.ceil(oz * step - 0.06) / step, 4) + ' fl oz';
+  }
+  function fLen(mm) { return units === 'imperial' ? frac(mm / 25.4, 16) + ' in' : r1(mm) + ' mm'; }
+  function fArea(w, h) { return units === 'imperial' ? frac(w / 25.4, 16) + ' × ' + frac(h / 25.4, 16) + ' in' : w + ' × ' + h + ' mm'; }
+
+  /* ---------- Model ----------
+     Each item wraps one glass from glasses.json (mm). Only the fields edited here are changed; the profiles are passed through. */
+  var items = [], dirty = false, undo = null, tab = 'all', uid = 0;
+
+  function looksStem(o, H, R) { return o.some(function (p) { return p[1] > 0.15 * H && p[1] < 0.6 * H && p[0] < 0.3 * R; }); }
+  function wrap(raw) {
+    var o = (raw.outer || []).map(function (p) { return [Math.max(+p[0] || 0, 0), +p[1] || 0]; });
+    var H = 0, R = 0, y0 = Infinity;
+    o.forEach(function (p) { H = Math.max(H, p[1]); R = Math.max(R, p[0]); y0 = Math.min(y0, p[1]); });
+    if (!o.length) y0 = 0;
+    var d = raw.decor || {}, pz = raw.print_zone && raw.print_zone.length >= 2 ? raw.print_zone : null;
+    var pick = function (a, b) { a = num(a); return a != null ? a : b; };
+    return {
+      key: ++uid, raw: raw, o: o, H: H, R: R, y0: y0, topR: o.length ? o[o.length - 1][0] : 0,
+      id: raw.id != null ? String(raw.id) : '', name: raw.name != null ? String(raw.name) : '',
+      cat: /^stem/i.test(raw.category || '') ? 'stemware' : /^candle/i.test(raw.category || '') ? 'candle' : raw.category ? 'drinkware' : looksStem(o, H, R) ? 'stemware' : 'drinkware',
+      ml: num(raw.capacity_ml),
+      lo: pick(d.min_height_mm, pz ? +pz[0] : y0 + pick(d.bottom_gap_mm, 10)),
+      hi: pick(d.max_height_mm, pz ? +pz[1] : H - pick(d.top_gap_mm, 10)),
+      gap: Math.max(pick(d.wrap_gap_mm, 10), 0)
+    };
+  }
+  function unwrap(it) {                     /* back to the file format, in a tidy key order */
+    var out = { id: it.id.trim(), name: it.name.trim(), category: it.cat, capacity_ml: it.ml == null ? 0 : it.ml,
+                decor: { min_height_mm: r1(it.lo), max_height_mm: r1(it.hi), wrap_gap_mm: r1(it.gap) } };
+    Object.keys(it.raw).forEach(function (k) { if (!(k in out) && k !== 'print_zone') out[k] = it.raw[k]; });
+    return out;
+  }
+  function radiusAt(it, y) {
+    var w = it.o, r = null;
+    for (var i = 0; i < w.length - 1; i++) {
+      var a = w[i], b = w[i + 1];
+      if (b[1] - a[1] < 1e-6) continue;
+      if (y >= a[1] - 1e-9 && y <= b[1] + 1e-9) r = a[0] + (b[0] - a[0]) * (y - a[1]) / (b[1] - a[1]);
+    }
+    return r == null ? it.R : r;
+  }
+  function printSize(it) {                  /* same sum as the visualiser: full wrap minus the gap, by height */
+    if (!(it.hi > it.lo) || it.R <= 0) return null;
+    var sum = 0, mn = Infinity, n = 12;
+    for (var i = 0; i <= n; i++) { var r = radiusAt(it, it.lo + (it.hi - it.lo) * i / n); sum += r; mn = Math.min(mn, r); }
+    var avg = sum / (n + 1); if (mn <= 0) return null;
+    return [Math.round((Math.PI * 2 - it.gap / mn) * avg), Math.round(it.hi - it.lo)];
+  }
+  function problems(it) {
+    var p = [], id = it.id.trim();
+    if (!id) p.push('Needs a code.');
+    else if (items.filter(function (o) { return o.id.trim() === id; }).length > 1) p.push('Another glass uses the code "' + id + '".');
+    if (!it.name.trim()) p.push('Needs a name.');
+    if (it.o.length < 3) p.push('The profile has too few points.');
+    else if (it.R < 1) p.push('The profile has no width (every radius is 0). Re-export it from Rhino.');
+    if (it.lo == null || it.hi == null || it.hi - it.lo < 5) p.push('The print area must be at least 5 mm tall.');
+    return p;
+  }
+  function notes(it) {
+    var n = [];
+    if (it.lo != null && it.lo < it.y0 - 0.01) n.push('Print area starts below the base.');
+    if (it.hi != null && it.hi > it.H + 0.01) n.push('Print area ends above the rim (' + r1(it.H) + ' mm).');
+    if (it.ml == null || it.ml <= 0) n.push('No capacity set, so it sorts first by capacity.');
+    return n;
+  }
+
+  /* ---------- Section drawing with the print area shaded ---------- */
+  function thumb(it) {
+    var W = 96, Hh = 132, pad = 8, H = Math.max(it.H, 1), R = Math.max(it.R, 1);
+    var s = Math.min((Hh - 2 * pad) / H, (W - 2 * pad) / (2 * R)), cx = W / 2, by = Hh - pad;
+    var X = function (r) { return (cx + r * s).toFixed(1); }, Y = function (h) { return (by - h * s).toFixed(1); };
+    var a = it.o.map(function (p) { return X(p[0]) + ' ' + Y(p[1]); });
+    var b = it.o.slice().reverse().map(function (p) { return X(-p[0]) + ' ' + Y(p[1]); });
+    var d = a.length ? 'M' + a.concat(b).join('L') + 'Z' : '', id = 'c' + it.key;
+    var lo = it.lo == null ? 0 : it.lo, hi = it.hi == null ? 0 : it.hi, band = '';
+    if (hi > lo) band = '<rect x="0" y="' + Y(hi) + '" width="' + W + '" height="' + ((hi - lo) * s).toFixed(1) + '" fill="var(--band)" fill-opacity="0.38" clip-path="url(#' + id + ')"/>' +
+      '<path d="M4 ' + Y(hi) + 'H' + (W - 4) + 'M4 ' + Y(lo) + 'H' + (W - 4) + '" stroke="var(--band)" stroke-width="1.2" stroke-dasharray="3 3"/>';
+    return '<svg class="thumb" viewBox="0 0 ' + W + ' ' + Hh + '" role="img" aria-label="Section of ' + (it.name || 'glass').replace(/[<>&"]/g, '') + ' with the print area shaded">' +
+      '<clipPath id="' + id + '"><path d="' + d + '"/></clipPath>' +
+      '<path d="' + d + '" fill="currentColor" fill-opacity="0.1" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>' + band + '</svg>';
+  }
+
+  /* ---------- Cards ---------- */
+  var listEl = $('list');
+  function field(cls, label, input) { var f = el('label', 'f ' + cls); f.appendChild(el('span', '', label)); f.appendChild(input); return f; }
+  function input(type, value, attrs) {
+    var i = el('input'); i.type = type; i.value = value == null ? '' : value;
+    Object.keys(attrs || {}).forEach(function (k) { i.setAttribute(k, attrs[k]); }); return i;
+  }
+  var ICON = {
+    up: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5"/></svg>',
+    down: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v10M3.5 8.5 8 13l4.5-4.5"/></svg>',
+    del: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.7 8.5h6.6l.7-8.5"/></svg>'
+  };
+  function card(it) {
+    var c = el('article', 'card'), th = el('div'), f = el('div', 'fields'), act = el('div', 'rowact');
+    var meta = el('div', 'meta'), prob = el('p', 'problems');
+    var name = input('text', it.name, { autocomplete: 'off' }), code = input('text', it.id, { autocomplete: 'off', spellcheck: 'false' });
+    var cap = input('number', it.ml, { min: 0, step: 1, inputmode: 'decimal' });
+    var lo = input('number', it.lo == null ? '' : r1(it.lo), { step: 0.5, inputmode: 'decimal' }), hi = input('number', it.hi == null ? '' : r1(it.hi), { step: 0.5, inputmode: 'decimal' });
+    var gap = input('number', r1(it.gap), { min: 0, step: 0.5, inputmode: 'decimal' });
+    var seg = el('div', 'seg'); seg.setAttribute('role', 'group'); seg.setAttribute('aria-label', 'Type');
+    [['drinkware', 'Drinkware'], ['stemware', 'Stemware'], ['candle', 'Candle jar']].forEach(function (t) {
+      var b = el('button', '', t[1]); b.type = 'button'; b.dataset.cat = t[0];
+      b.addEventListener('click', function () { it.cat = t[0]; touched(); refresh(); renderTabs(); applyFilter(); });
+      seg.appendChild(b);
+    });
+    var tf = el('div', 'f type'); tf.appendChild(el('span', '', 'Type')); tf.appendChild(seg);
+    f.appendChild(field('name', 'Name', name)); f.appendChild(field('code', 'Code (id)', code)); f.appendChild(field('cap', 'Capacity ml', cap));
+    f.appendChild(tf); f.appendChild(field('lo', 'Print from mm', lo)); f.appendChild(field('hi', 'Print to mm', hi)); f.appendChild(field('gap', 'Wrap gap mm', gap));
+    f.appendChild(meta); f.appendChild(prob);
+    var mk = function (k, label, fn) { var b = el('button', 'icon'); b.type = 'button'; b.innerHTML = ICON[k]; b.title = label; b.setAttribute('aria-label', label + ': ' + (it.name || it.id)); b.addEventListener('click', fn); act.appendChild(b); return b; };
+    it.upBtn = mk('up', 'Move up', function () { move(it, -1); });
+    it.downBtn = mk('down', 'Move down', function () { move(it, 1); });
+    mk('del', 'Remove', function () { remove(it); });
+
+    function refresh() {
+      th.innerHTML = thumb(it);
+      seg.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.cat === it.cat ? 'true' : 'false'); });
+      var ps = printSize(it);
+      meta.textContent = 'Height ' + fLen(it.H) + ' · Ø rim ' + fLen(it.topR * 2) + (units === 'imperial' && it.ml ? ' · ' + flOz(it.ml) : '') +
+        (ps ? ' · print area ' + fArea(ps[0], ps[1]) : '') + (units === 'imperial' && it.lo != null && it.hi != null ? ' (from ' + fLen(it.lo) + ' to ' + fLen(it.hi) + ')' : '');
+      var p = problems(it), n = notes(it);
+      prob.hidden = !(p.length || n.length); prob.textContent = p.concat(n).join(' ');
+      c.classList.toggle('bad', p.length > 0);
+      code.setAttribute('aria-invalid', p.some(function (x) { return /code/.test(x); }) ? 'true' : 'false');
+      var badArea = p.some(function (x) { return /print area/.test(x); });
+      lo.setAttribute('aria-invalid', badArea ? 'true' : 'false'); hi.setAttribute('aria-invalid', badArea ? 'true' : 'false');
+    }
+    it.refresh = refresh;
+    name.addEventListener('input', function () { it.name = name.value; touched(); refresh(); });
+    code.addEventListener('input', function () { it.id = code.value; touched(); items.forEach(function (o) { o.refresh(); }); });
+    cap.addEventListener('input', function () { it.ml = num(cap.value); touched(); refresh(); });
+    lo.addEventListener('input', function () { it.lo = num(lo.value); touched(); refresh(); });
+    hi.addEventListener('input', function () { it.hi = num(hi.value); touched(); refresh(); });
+    gap.addEventListener('input', function () { var v = num(gap.value); it.gap = v == null ? 0 : Math.max(v, 0); touched(); refresh(); });
+    c.appendChild(th); c.appendChild(f); c.appendChild(act);
+    it.el = c; refresh();
+    return c;
+  }
+
+  /* ---------- List, filter, order ---------- */
+  function render() {
+    listEl.textContent = '';
+    items.forEach(function (it) { listEl.appendChild(it.el || card(it)); it.refresh(); });
+    renderTabs(); applyFilter(); status();
+  }
+  function renderTabs() {
+    var t = $('tabs'); t.textContent = '';
+    [['all', 'All'], ['drinkware', 'Drinkware'], ['stemware', 'Stemware'], ['candle', 'Candle jars']].forEach(function (x) {
+      var b = el('button', 'chip', x[1]); b.type = 'button'; b.setAttribute('aria-pressed', tab === x[0] ? 'true' : 'false');
+      b.appendChild(el('span', 'n', items.filter(function (i) { return x[0] === 'all' || i.cat === x[0]; }).length));
+      b.addEventListener('click', function () { tab = x[0]; renderTabs(); applyFilter(); });
+      t.appendChild(b);
+    });
+  }
+  function applyFilter() {
+    var words = $('q').value.toLowerCase().split(/\s+/).filter(Boolean), filtered = words.length > 0 || tab !== 'all';
+    items.forEach(function (it, i) {
+      var hay = (it.name + ' ' + it.id + ' ' + (it.ml == null ? '' : it.ml + 'ml') + ' ' + it.cat).toLowerCase();
+      it.el.hidden = !((tab === 'all' || it.cat === tab) && words.every(function (w) { return hay.indexOf(w) >= 0; }));
+      it.upBtn.disabled = filtered || i === 0; it.downBtn.disabled = filtered || i === items.length - 1;
+    });
+    $('empty').hidden = items.length > 0;
+  }
+  function snapshot(msg) { undo = { items: items.slice(), msg: msg }; }
+  function touched() { dirty = true; status(); }
+  function move(it, by) {
+    var i = items.indexOf(it), j = i + by; if (j < 0 || j >= items.length) return;
+    items.splice(i, 1); items.splice(j, 0, it); dirty = true; render();
+    (by < 0 ? it.upBtn : it.downBtn).focus();
+  }
+  function remove(it) { snapshot('Removed ' + (it.name || it.id || 'a glass') + '.'); items = items.filter(function (o) { return o !== it; }); dirty = true; render(); }
+  $('order').addEventListener('change', function () {
+    var v = this.value; this.value = ''; if (!v || items.length < 2) return;
+    snapshot('Catalogue reordered.');
+    var cap = function (i) { return i.ml == null ? 0 : i.ml; }, nm = function (a, b) { return a.name.localeCompare(b.name, undefined, { numeric: true }); };
+    var by = { cap: function (a, b) { return cap(a) - cap(b) || nm(a, b); }, capd: function (a, b) { return cap(b) - cap(a) || nm(a, b); }, name: nm,
+               type: function (a, b) { return a.cat.localeCompare(b.cat) || cap(a) - cap(b) || nm(a, b); } };
+    items = items.slice().sort(by[v]); dirty = true; render();
+  });
+  $('q').addEventListener('input', applyFilter);
+  function setUnits(u) {
+    units = u === 'imperial' ? 'imperial' : 'metric';
+    try { localStorage.setItem('gv-units', units); } catch (e) {}
+    $('units').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.units === units ? 'true' : 'false'); });
+    items.forEach(function (it) { if (it.refresh) it.refresh(); });
+  }
+  $('units').querySelectorAll('button').forEach(function (b) { b.addEventListener('click', function () { setUnits(b.dataset.units); }); });
+  setUnits(units);
+
+  /* ---------- Status line ---------- */
+  var note = '';
+  function status() {
+    var s = $('status'); s.textContent = '';
+    if (dirty) s.appendChild(el('span', 'dirty', 'Not downloaded yet'));
+    var bad = items.filter(function (it) { return problems(it).length; }).length;
+    var txt = items.length + (items.length === 1 ? ' glass' : ' glasses') + (bad ? ' · ' + bad + ' with a problem (the visualiser would skip ' + (bad === 1 ? 'it' : 'them') + ')' : '');
+    s.appendChild(el('span', '', txt));
+    if (note) s.appendChild(el('span', '', note));
+    if (undo) {
+      s.appendChild(el('span', '', undo.msg));
+      var u = el('button', '', 'Undo'); u.type = 'button';
+      u.addEventListener('click', function () { items = undo.items; undo = null; render(); });
+      s.appendChild(u);
+    }
+  }
+
+  /* ---------- Adding files ---------- */
+  function addData(data, from) {
+    var list = data && Array.isArray(data.glasses) ? data.glasses : Array.isArray(data) ? data : data && data.outer ? [data] : null;
+    if (!list) throw new Error('no "glasses" list in it');
+    var added = 0, replaced = 0;
+    list.forEach(function (raw) {
+      if (!raw || typeof raw !== 'object') return;
+      var it = wrap(raw), i = -1;
+      if (it.id) items.forEach(function (o, k) { if (o.id.trim() === it.id.trim()) i = k; });
+      if (i >= 0) { items[i] = it; replaced++; } else { items.push(it); added++; }
+    });
+    return from + ': ' + added + ' added' + (replaced ? ', ' + replaced + ' replaced' : '');
+  }
+  function addFiles(files) {
+    var msgs = [], left = files.length; if (!left) return;
+    snapshot('');
+    Array.prototype.forEach.call(files, function (file) {
+      var rd = new FileReader();
+      rd.onload = function () {
+        try { msgs.push(addData(JSON.parse(rd.result), file.name)); dirty = true; } catch (e) { msgs.push(file.name + ' could not be used (' + e.message + ')'); }
+        done();
+      };
+      rd.onerror = function () { msgs.push(file.name + ' could not be read'); done(); };
+      rd.readAsText(file);
+    });
+    function done() { if (--left) return; note = msgs.join(' · ') + '.'; undo.msg = ''; undo = dirty ? { items: undo.items, msg: 'Files added.' } : null; render(); }
+  }
+  $('addBtn').addEventListener('click', function () { $('addFile').click(); });
+  $('addFile').addEventListener('change', function (e) { addFiles(e.target.files); e.target.value = ''; });
+  ['dragenter', 'dragover'].forEach(function (ev) { document.addEventListener(ev, function (e) { e.preventDefault(); document.body.classList.add('dropping'); }); });
+  ['dragleave', 'drop'].forEach(function (ev) { document.addEventListener(ev, function (e) { e.preventDefault(); document.body.classList.remove('dropping'); }); });
+  document.addEventListener('drop', function (e) { if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files); });
+
+  /* ---------- Saving ---------- */
+  function json() { return JSON.stringify({ units: 'mm', glasses: items.map(unwrap) }); }
+  $('saveBtn').addEventListener('click', function () {
+    var a = document.createElement('a'), url = URL.createObjectURL(new Blob([json()], { type: 'application/json' }));
+    a.href = url; a.download = 'glasses.json'; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+    dirty = false; undo = null; note = 'Downloaded. Upload glasses.json next to index.html to publish it. If nothing downloaded, use Copy JSON.'; status();
+  });
+  $('copyBtn').addEventListener('click', function () {
+    var text = json(), box = $('copyBox');
+    var fallback = function () { box.hidden = false; box.value = text; box.focus(); box.select(); note = 'Copy the selected text and save it as glasses.json.'; status(); };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { note = 'Copied. Paste it into a file named glasses.json.'; status(); }, fallback);
+    else fallback();
+  });
+  window.addEventListener('beforeunload', function (e) { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+  /* ---------- Start: open the glasses.json that sits beside this page, when there is one ---------- */
+  if (location.protocol === 'file:') { render(); note = 'Opened from your computer: add your glasses.json to begin.'; status(); }
+  else fetch('glasses.json', { cache: 'no-cache' }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function (d) { addData(d, 'glasses.json'); note = 'Loaded the catalogue that is live beside this page.'; render(); })
+    .catch(function () { note = 'No glasses.json found beside this page: add one to begin.'; render(); });
+})();
+</script>
+</body>
+</html>
