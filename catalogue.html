@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="version" content="2026-11-12">
-<!-- Version 11-12b (12 November 2026, afternoon) -->
+<!-- Version 11-13 (13 November 2026) -->
 <title>Glass Catalogue</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -100,6 +100,10 @@ input[aria-invalid="true"] { border-color: #b3261e; box-shadow: 0 0 0 1px #b3261
 .scard .pic { width: 132px; height: 74px; border-radius: 9px; border: 1px solid var(--line); object-fit: contain; display: block;
   background: repeating-conic-gradient(var(--field) 0% 25%, var(--chip) 0% 50%) 50% / 14px 14px; }
 .scard canvas.pic { object-fit: cover; }
+#sgThumb .thumb { width: 132px; height: 186px; }
+#simplePanel .rowact { gap: 8px; }
+#simplePanel .seg { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 430px; }
+.f.s5 { grid-column: span 5; } .f.s7 { grid-column: span 7; }
 .scard .nopic { display: grid; place-items: center; color: var(--muted); font-size: 12px; text-align: center; padding: 4px; background: var(--field); }
 .f.s4 { grid-column: span 4; } .f.s3 { grid-column: span 3; } .f.s2 { grid-column: span 2; } .f.s6 { grid-column: span 6; } .f.s12 { grid-column: 1 / -1; }
 .fields .f.pickrow { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; }
@@ -161,6 +165,7 @@ body { margin: 0; }
       <p class="lede">Manage the glasses, the sample artwork and the lighting for the visualiser, then download <code>glasses.json</code> and upload it next to the visualiser.</p>
     </div>
     <div class="actions">
+      <button class="btn" id="simpleBtn" type="button">New simple shape</button>
       <button class="btn" id="addBtn" type="button">Add glasses…</button>
       <input id="addFile" type="file" accept=".json,application/json" multiple hidden>
       <button class="btn" id="copyBtn" type="button">Copy JSON</button>
@@ -177,6 +182,38 @@ body { margin: 0; }
   <textarea class="copybox" id="copyBox" readonly hidden aria-label="Catalogue JSON"></textarea>
 
   <section class="page" id="page-glasses">
+  <section class="intro" id="simplePanel" hidden>
+    <p id="sgLede">A straight or tapered glass drawn from its measurements, with no Rhino step. Everything is in millimetres, and the diameters are across the outside of the glass.</p>
+    <div class="scard">
+      <div id="sgThumb"></div>
+      <div class="fields">
+        <label class="f s7"><span>Name</span><input id="sgName" type="text" autocomplete="off"></label>
+        <label class="f s5"><span>Code (id)</span><input id="sgId" type="text" autocomplete="off" spellcheck="false"></label>
+        <div class="f s12"><span>Type</span>
+          <div class="seg" id="sgType" role="group" aria-label="Type">
+            <button type="button" data-cat="drinkware" aria-pressed="true">Drinkware</button>
+            <button type="button" data-cat="stemware" aria-pressed="false">Stemware</button>
+            <button type="button" data-cat="candle" aria-pressed="false">Candle jar</button>
+          </div>
+        </div>
+        <label class="f s3"><span>Height</span><input id="sgH" type="number" min="10" max="500" step="0.5" inputmode="decimal" value="150"></label>
+        <label class="f s3"><span>Top diameter</span><input id="sgTop" type="number" min="5" max="300" step="0.5" inputmode="decimal" value="64"></label>
+        <label class="f s3"><span>Base diameter</span><input id="sgBase" type="number" min="5" max="300" step="0.5" inputmode="decimal" value="56"></label>
+        <label class="f s3"><span>Capacity ml</span><input id="sgCap" type="number" min="0" step="1" inputmode="decimal"></label>
+        <label class="f s3"><span>Wall thickness</span><input id="sgWall" type="number" min="0.5" max="30" step="0.1" inputmode="decimal" value="2.5"></label>
+        <label class="f s3"><span>Base thickness</span><input id="sgSham" type="number" min="0.5" max="120" step="0.5" inputmode="decimal" value="8"></label>
+        <label class="f s3"><span>Inside fillet</span><input id="sgFillet" type="number" min="0" max="60" step="0.5" inputmode="decimal" value="4"></label>
+        <label class="f s3"><span>Base edge radius</span><input id="sgEdge" type="number" min="0" max="60" step="0.5" inputmode="decimal" value="1.5"></label>
+        <div class="meta" id="sgMeta"></div>
+        <p class="problems" id="sgProb" hidden></p>
+      </div>
+      <div class="rowact">
+        <button class="btn primary" id="sgSave" type="button">Add glass</button>
+        <button class="btn" id="sgCancel" type="button">Cancel</button>
+      </div>
+    </div>
+  </section>
+
   <div class="bar">
     <input type="search" id="q" placeholder="Search by name, code or capacity" aria-label="Search glasses" autocomplete="off">
     <div class="chips" id="tabs" role="group" aria-label="Show type"></div>
@@ -522,9 +559,128 @@ body { margin: 0; }
     page = p;
     ['glasses', 'artwork', 'lighting'].forEach(function (k) { $('page-' + k).hidden = k !== p; });
     $('pages').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-selected', b.dataset.page === p ? 'true' : 'false'); });
-    $('addBtn').hidden = p !== 'glasses';
+    $('addBtn').hidden = $('simpleBtn').hidden = p !== 'glasses';
+    if (p !== 'glasses') showSimple(false);
   }
   $('pages').querySelectorAll('button').forEach(function (b) { b.addEventListener('click', function () { showPage(b.dataset.page); }); });
+
+  /* ---------- Simple shapes: a glass worked out from a few measurements ----------
+     Straight or tapered only. The outside runs base centre -> base -> rounded edge -> up the side -> rim,
+     and the inside runs rim -> down the wall -> fillet -> floor centre, which is the shape the viewer expects. */
+  function unit(dx, dy) { var l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l]; }
+  function filletArc(c, u1, u2, f, n) {    /* a rounded corner at c between the two directions; points run u1 side -> u2 side */
+    var dot = u1[0] * u2[0] + u1[1] * u2[1], a = Math.acos(Math.max(-1, Math.min(1, dot)));
+    if (!(f > 0) || a < 0.02 || a > Math.PI - 0.02) return null;
+    var t = f / Math.tan(a / 2), d = f / Math.sin(a / 2);
+    var b = unit(u1[0] + u2[0], u1[1] + u2[1]), ox = c[0] + b[0] * d, oy = c[1] + b[1] * d;
+    var p1 = [c[0] + u1[0] * t, c[1] + u1[1] * t], p2 = [c[0] + u2[0] * t, c[1] + u2[1] * t];
+    var a1 = Math.atan2(p1[1] - oy, p1[0] - ox), a2 = Math.atan2(p2[1] - oy, p2[0] - ox), da = a2 - a1;
+    while (da > Math.PI) da -= 2 * Math.PI;
+    while (da < -Math.PI) da += 2 * Math.PI;
+    var pts = [];
+    for (var i = 0; i <= n; i++) pts.push([ox + Math.cos(a1 + da * i / n) * f, oy + Math.sin(a1 + da * i / n) * f]);
+    return pts;
+  }
+  function simpleShape(v) {
+    var H = v.h, rt = v.top / 2, rb = v.base / 2, w = v.wall, sh = v.sham;
+    var bad = [];
+    if (!(H > 0)) bad.push('Height is needed.');
+    if (!(rt > 0) || !(rb > 0)) bad.push('Both diameters are needed.');
+    if (!(w > 0)) bad.push('Wall thickness is needed.');
+    if (!(sh > 0)) bad.push('Base thickness is needed.');
+    if (bad.length) return { bad: bad };
+    if (sh > H - 5) bad.push('The base is thicker than the glass is tall.');
+    var riTop = rt - w, riFloor = rb + (rt - rb) * (sh / H) - w;
+    if (riTop < 1 || riFloor < 1) bad.push('The wall is too thick for these diameters: there is no cavity left.');
+    if (bad.length) return { bad: bad };
+    var outer = [[0, 0]], up = unit(rt - rb, H);
+    var oe = filletArc([rb, 0], [-1, 0], up, Math.min(v.edge, rb * 0.6, H * 0.2), 6);
+    if (oe) outer = outer.concat(oe); else outer.push([rb, 0]);
+    outer.push([rt, H]);
+    var inner = [[riTop, H]], upIn = unit(riTop - riFloor, H - sh);
+    var ie = filletArc([riFloor, sh], [-1, 0], upIn, Math.min(v.fillet, riFloor * 0.8, (H - sh) * 0.3), 8);
+    if (ie) inner = inner.concat(ie.slice().reverse()); else inner.push([riFloor, sh]);
+    inner.push([0, sh]);
+    var ml = 0;
+    for (var i = 0; i < inner.length - 1; i++) {
+      var a = inner[i], b = inner[i + 1];
+      ml += Math.PI / 3 * (a[0] * a[0] + a[0] * b[0] + b[0] * b[0]) * (b[1] - a[1]);
+    }
+    var r2 = function (p) { return p.map(function (q) { return [Math.round(Math.max(q[0], 0) * 100) / 100, Math.round(q[1] * 100) / 100]; }); };
+    return { outer: r2(outer), inner: r2(inner), ml: Math.abs(ml) / 1000 };
+  }
+
+  var sgCat = 'drinkware', sgEditing = null, sgCapAuto = null;
+  var SGF = [['sgH', 'h'], ['sgTop', 'top'], ['sgBase', 'base'], ['sgWall', 'wall'], ['sgSham', 'sham'], ['sgFillet', 'fillet'], ['sgEdge', 'edge']];
+  function sgValues() {
+    var v = {};
+    SGF.forEach(function (f) { v[f[1]] = num($(f[0]).value) || 0; });
+    return v;
+  }
+  function sgDraw() {
+    var v = sgValues(), r = simpleShape(v), prob = $('sgProb');
+    if (r.bad) {
+      $('sgThumb').textContent = ''; $('sgMeta').textContent = '';
+      prob.hidden = false; prob.textContent = r.bad.join(' '); $('sgSave').disabled = true;
+      return null;
+    }
+    /* the capacity follows the measurements until it is typed over, and then it stays put */
+    var auto = Math.round(r.ml), cap = $('sgCap');
+    if (cap.value.trim() === '' || (sgCapAuto != null && cap.value.trim() === String(sgCapAuto))) cap.value = auto;
+    sgCapAuto = auto;
+    var raw = { id: $('sgId').value.trim(), name: $('sgName').value.trim(), category: sgCat,
+                capacity_ml: num(cap.value) || auto, outer: r.outer, inner: r.inner, simple: v };
+    var it = wrap(raw), ps = printSize(it);
+    $('sgThumb').innerHTML = thumb(it);
+    $('sgMeta').textContent = 'Brim full ' + Math.round(r.ml) + ' ml · ' + (units === 'imperial' ? flOz(r.ml) + ' · ' : '') +
+      'height ' + fLen(it.H) + ' · inside Ø at the rim ' + fLen((v.top - 2 * v.wall)) + (ps ? ' · print area ' + fArea(ps[0], ps[1]) : '');
+    var p = [];
+    if (!raw.name) p.push('Needs a name.');
+    if (!raw.id) p.push('Needs a code.');
+    else if (items.some(function (o) { return o.id.trim() === raw.id && o !== sgEditing; })) p.push('Another glass already uses the code "' + raw.id + '". Adding will replace it.');
+    prob.hidden = !p.length; prob.textContent = p.join(' ');
+    $('sgSave').disabled = !raw.name || !raw.id;
+    return raw;
+  }
+  function showSimple(on, it) {
+    $('simplePanel').hidden = !on;
+    if (!on) { sgEditing = null; return; }
+    sgEditing = it || null; sgCapAuto = null;
+    var v = (it && it.raw.simple) || { h: 150, top: 64, base: 56, wall: 2.5, sham: 8, fillet: 4, edge: 1.5 };
+    SGF.forEach(function (f) { $(f[0]).value = v[f[1]] == null ? '' : v[f[1]]; });
+    $('sgName').value = it ? it.name : ''; $('sgId').value = it ? it.id : '';
+    $('sgCap').value = it && it.ml ? it.ml : '';
+    sgCat = it ? it.cat : 'drinkware';
+    $('sgType').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.cat === sgCat ? 'true' : 'false'); });
+    $('sgSave').textContent = it ? 'Save changes' : 'Add glass';
+    $('sgLede').textContent = it ? 'Change the measurements of ' + (it.name || it.id) + '. The print area and everything else about it is kept.'
+      : 'A straight or tapered glass drawn from its measurements, with no Rhino step. Everything is in millimetres, and the diameters are across the outside of the glass.';
+    sgDraw(); $('sgName').focus();
+  }
+  SGF.concat([['sgName'], ['sgId']]).forEach(function (f) { $(f[0]).addEventListener('input', sgDraw); });
+  $('sgCap').addEventListener('input', sgDraw);
+  $('sgType').querySelectorAll('button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      sgCat = b.dataset.cat;
+      $('sgType').querySelectorAll('button').forEach(function (o) { o.setAttribute('aria-pressed', o === b ? 'true' : 'false'); });
+      sgDraw();
+    });
+  });
+  $('simpleBtn').addEventListener('click', function () { showSimple($('simplePanel').hidden); });
+  $('sgCancel').addEventListener('click', function () { showSimple(false); });
+  $('sgSave').addEventListener('click', function () {
+    var raw = sgDraw(); if (!raw) return;
+    var it = wrap(raw), at = -1;
+    if (sgEditing) {                      /* an edit keeps the print area already set, pulled in if the glass got shorter */
+      it.gap = sgEditing.gap;
+      it.lo = Math.min(sgEditing.lo, it.H - 5); it.hi = Math.min(sgEditing.hi, it.H);
+      if (it.hi - it.lo < 5) { it.lo = it.y0 + 10; it.hi = it.H - 10; }
+    }
+    items.forEach(function (o, k) { if (o.id.trim() === raw.id) at = k; });
+    if (at >= 0) { items[at] = it; note = raw.name + ' replaced the glass with the same code.'; }
+    else { items.push(it); note = raw.name + ' added, brim full ' + Math.round(simpleShape(raw.simple).ml) + ' ml.'; }
+    dirty = true; showSimple(false); render();
+  });
 
   /* ---------- Section drawing with the print area shaded ---------- */
   function thumb(it) {
@@ -552,6 +708,7 @@ body { margin: 0; }
   var ICON = {
     up: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5"/></svg>',
     down: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3v10M3.5 8.5 8 13l4.5-4.5"/></svg>',
+    edit: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 13.5h11"/><path d="M4.5 11V4.2h2.2V11"/><path d="M9.3 11V6.6h2.2V11"/></svg>',
     del: '<svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 4.5h11M6 4.5V3h4v1.5M4 4.5l.7 8.5h6.6l.7-8.5"/></svg>'
   };
   function card(it) {
@@ -572,6 +729,7 @@ body { margin: 0; }
     f.appendChild(tf); f.appendChild(field('lo', 'Print from mm', lo)); f.appendChild(field('hi', 'Print to mm', hi)); f.appendChild(field('gap', 'Wrap gap mm', gap));
     f.appendChild(meta); f.appendChild(prob);
     var mk = function (k, label, fn) { var b = el('button', 'icon'); b.type = 'button'; b.innerHTML = ICON[k]; b.title = label; b.setAttribute('aria-label', label + ': ' + (it.name || it.id)); b.addEventListener('click', fn); act.appendChild(b); return b; };
+    if (it.raw.simple) mk('edit', 'Change the measurements', function () { showSimple(true, it); window.scrollTo({ top: 0, behavior: 'smooth' }); });
     it.upBtn = mk('up', 'Move up', function () { move(it, -1); });
     it.downBtn = mk('down', 'Move down', function () { move(it, 1); });
     mk('del', 'Remove', function () { remove(it); });
@@ -647,6 +805,7 @@ body { margin: 0; }
     try { localStorage.setItem('gv-units', units); } catch (e) {}
     $('units').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.units === units ? 'true' : 'false'); });
     items.forEach(function (it) { if (it.refresh) it.refresh(); });
+    if (!$('simplePanel').hidden) sgDraw();
   }
   $('units').querySelectorAll('button').forEach(function (b) { b.addEventListener('click', function () { setUnits(b.dataset.units); }); });
   setUnits(units);
