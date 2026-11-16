@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="version" content="2026-11-12">
-<!-- Version 11-13 (13 November 2026) -->
+<!-- Version 11-16 (16 November 2026) -->
 <title>Glass Catalogue</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -108,6 +108,35 @@ input[aria-invalid="true"] { border-color: #b3261e; box-shadow: 0 0 0 1px #b3261
 .f.s4 { grid-column: span 4; } .f.s3 { grid-column: span 3; } .f.s2 { grid-column: span 2; } .f.s6 { grid-column: span 6; } .f.s12 { grid-column: 1 / -1; }
 .fields .f.pickrow { grid-column: 1 / -1; display: flex; gap: 8px; align-items: center; }
 .fields .f.pickrow input { width: auto; flex: none; }
+.lookgrid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; align-items: start; }
+.swrow { display: flex; gap: 8px; }
+.swrow input[type="color"] { width: 44px; height: 34px; padding: 2px; flex: none; }
+.swrow input[type="text"] { font-family: var(--font-mono); min-width: 0; flex: 1; }
+.linkbtn { font: inherit; font-weight: 600; background: none; border: 0; padding: 0; color: var(--fg); text-decoration: underline; cursor: pointer; }
+.wgroup { margin: 14px 0 6px; font: 600 11px var(--font-ui); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.wrow { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 10px; align-items: center; padding: 3px 0; }
+.wrow label { color: var(--muted); font-size: 13px; }
+.wrow input, .wrow textarea { width: 100%; font: inherit; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--line); background: var(--field); color: var(--fg); min-width: 0; }
+.wrow textarea { resize: vertical; min-height: 58px; }
+/* the preview is painted from the theme being edited, not from this page's own colors */
+.mock { background: var(--m-bg); padding: 14px; border-radius: 12px; border: 1px solid var(--line); font-family: var(--m-body); color: var(--m-fg); }
+.mk-panel { background: var(--m-panel); border: 1px solid var(--m-frame); border-radius: calc(14px * var(--m-round)); padding: 14px; display: grid; gap: 10px; }
+.mk-h1 { font: 700 18px var(--m-head); letter-spacing: -0.02em; }
+.mk-p { font-size: 12.5px; color: var(--m-muted); }
+.mk-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; padding: 3px; border: 1px solid var(--m-line); border-radius: calc(12px * var(--m-round)); background: var(--m-field); font-weight: 600; font-size: 12.5px; text-align: center; }
+.mk-mode span { padding: 6px; border-radius: calc(8px * var(--m-round)); }
+.mk-mode .on, .mk-chips .on, .mk-btns .pri { background: var(--m-accent); color: var(--m-accent-fg); border-color: var(--m-accent); }
+.mk-step { border: 1px solid var(--m-line); border-radius: calc(14px * var(--m-round)); padding: 9px 11px; display: grid; gap: 8px; }
+.mk-step.on { background: var(--m-field); border-color: var(--m-accent); box-shadow: 0 0 0 1px var(--m-accent); }
+.mk-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.mk-row i { font: 600 10px var(--font-mono); width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; border: 1.5px solid var(--m-line); color: var(--m-muted); font-style: normal; }
+.mk-step.on .mk-row i { background: var(--m-accent); border-color: var(--m-accent); color: var(--m-accent-fg); }
+.mk-row b { font-family: var(--m-head); color: var(--m-muted); } .mk-step.on .mk-row b { color: var(--m-fg); }
+.mk-row em { margin-left: auto; font: 500 11px var(--font-mono); color: var(--m-muted); font-style: normal; }
+.mk-field { font-size: 12px; padding: 6px 9px; border: 1px solid var(--m-line); border-radius: calc(9px * var(--m-round)); background: var(--m-panel); color: var(--m-muted); }
+.mk-chips, .mk-btns { display: flex; gap: 5px; flex-wrap: wrap; font-size: 11.5px; font-weight: 600; }
+.mk-chips span { padding: 3px 9px; border-radius: 999px; border: 1px solid var(--m-line); background: var(--m-chip); }
+.mk-btns span { padding: 6px 11px; border-radius: calc(9px * var(--m-round)); border: 1px solid var(--m-line); background: var(--m-field); }
 .list { display: grid; gap: 10px; }
 .card {
   display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 14px; align-items: start;
@@ -143,6 +172,8 @@ body.dropping .wrap { outline: 3px dashed var(--accent); outline-offset: 8px; bo
 .copybox { width: 100%; height: 160px; font: 12px var(--font-mono); padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--field); color: var(--fg); }
 
 @media (max-width: 720px) {
+  .lookgrid { grid-template-columns: minmax(0, 1fr); }
+  .wrow { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .scard { grid-template-columns: 96px minmax(0, 1fr); }
   .scard .pic { width: 96px; height: 54px; }
   .scard .rowact { grid-column: 1 / -1; grid-auto-flow: column; justify-content: end; }
@@ -177,6 +208,7 @@ body { margin: 0; }
     <button type="button" role="tab" data-page="glasses" aria-selected="true">Glasses<span class="n" id="nGlasses"></span></button>
     <button type="button" role="tab" data-page="artwork" aria-selected="false">Artwork<span class="n" id="nArtwork"></span></button>
     <button type="button" role="tab" data-page="lighting" aria-selected="false">Lighting and background<span class="n" id="nLighting"></span></button>
+    <button type="button" role="tab" data-page="look" aria-selected="false">Theme and wording<span class="n" id="nLook"></span></button>
   </div>
   <div class="status" id="status" aria-live="polite"></div>
   <textarea class="copybox" id="copyBox" readonly hidden aria-label="Catalogue JSON"></textarea>
@@ -266,6 +298,42 @@ body { margin: 0; }
         <input type="text" id="bgHex" value="#B2B6BA" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Background hex code" style="width:110px;font-family:var(--font-mono)">
         <button class="btn" id="bgReset" type="button">Standard gray</button>
       </div>
+    </div>
+  </section>
+
+  <section class="page" id="page-look" hidden>
+    <div class="intro">
+      <p>The colors, typefaces and corner shape of the visualiser. Pick four colors and the in-between shades are worked out for you. The 3D view keeps its own background, set on the Lighting and background page.</p>
+      <div class="lookgrid">
+        <div class="fields">
+          <div class="f s6"><span>Page background</span><div class="swrow"><input type="color" id="thBg"><input type="text" id="thBgHex" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Page background hex"></div></div>
+          <div class="f s6"><span>Panel</span><div class="swrow"><input type="color" id="thPanel"><input type="text" id="thPanelHex" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Panel hex"></div></div>
+          <div class="f s6"><span>Text</span><div class="swrow"><input type="color" id="thText"><input type="text" id="thTextHex" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Text hex"></div></div>
+          <div class="f s6"><span>Accent (buttons, current step)</span><div class="swrow"><input type="color" id="thAccent"><input type="text" id="thAccentHex" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Accent hex"></div></div>
+          <label class="f s6"><span>Heading typeface</span><input type="text" id="thHead" list="fontList" placeholder="Familjen Grotesk" autocomplete="off" spellcheck="false"></label>
+          <label class="f s6"><span>Body typeface</span><input type="text" id="thBody" list="fontList" placeholder="Familjen Grotesk" autocomplete="off" spellcheck="false"></label>
+          <label class="f s12"><span>Corners: <output id="thRoundOut"></output></span><input type="range" id="thRound" min="0" max="1.8" step="0.05"></label>
+          <div class="meta">Typefaces are Google Fonts: type any family name from fonts.google.com, exactly as written there.</div>
+          <p class="problems" id="thWarn" hidden></p>
+          <div class="f s12"><button class="btn" id="thReset" type="button">Back to the built-in look</button></div>
+        </div>
+        <div class="mock" id="mock" aria-label="Preview of the panel">
+          <div class="mk-panel">
+            <div class="mk-h1">Glassware Visualiser</div>
+            <div class="mk-p">Pick a glass, add your artwork, and see how the print sits on it.</div>
+            <div class="mk-mode"><span class="on">Drink</span><span>Candle</span></div>
+            <div class="mk-step on"><div class="mk-row"><i>1</i><b>Choose a glass</b></div><div class="mk-field">Search name, code or ml</div><div class="mk-chips"><span class="on">All</span><span>Drinkware</span><span>Stemware</span></div></div>
+            <div class="mk-step"><div class="mk-row"><i>2</i><b>Glass and fill</b><em>Empty</em></div></div>
+            <div class="mk-step"><div class="mk-row"><i>3</i><b>Add your artwork</b><em>Botanical</em></div></div>
+            <div class="mk-btns"><span class="pri">Upload image</span><span>Save a picture</span></div>
+          </div>
+        </div>
+      </div>
+      <datalist id="fontList"><option value="Familjen Grotesk"><option value="Inter"><option value="DM Sans"><option value="Manrope"><option value="Work Sans"><option value="Outfit"><option value="Sora"><option value="Space Grotesk"><option value="IBM Plex Sans"><option value="Poppins"><option value="Montserrat"><option value="Jost"><option value="Playfair Display"><option value="Fraunces"><option value="Lora"><option value="DM Serif Display"><option value="Cormorant Garamond"></datalist>
+    </div>
+    <div class="intro">
+      <p>The words customers read. Leave a box empty to keep the built-in wording, which is shown in gray. <button class="linkbtn" id="txClear" type="button">Clear all</button></p>
+      <div id="wordList"></div>
     </div>
   </section>
 </div>
@@ -362,11 +430,13 @@ body { margin: 0; }
   var builtInByKey = {}; BUILTIN.forEach(function (b) { builtInByKey[b.key] = b; });
   var allBuiltIn = function () { return BUILTIN.map(function (b, i) { return { builtin: b.key, default: i === 0 }; }); };
   var BG0 = '#b2b6ba';
-  var settings = { artwork: allBuiltIn(), background: BG0, lighting: { active: -1, also_standard: false, list: [] } };
+  var settings = { theme: {}, text: {}, artwork: allBuiltIn(), background: BG0, lighting: { active: -1, also_standard: false, list: [] } };
   function readSettings(st) {
     if (!st || typeof st !== 'object') return false;
     var L = st.lighting || {};
     settings = {
+      theme: st.theme && typeof st.theme === 'object' ? st.theme : {},
+      text: st.text && typeof st.text === 'object' ? st.text : {},
       background: /^#[0-9a-f]{6}$/i.test(st.background || '') ? st.background.toLowerCase() : BG0,
       artwork: (st.artwork || []).filter(function (a) { return a && (a.image || builtInByKey[a.builtin]); }).map(function (a) {
         if (!a.image) return { builtin: a.builtin, default: !!a.default };
@@ -386,7 +456,11 @@ body { margin: 0; }
   }
   function writeSettings() {
     var L = settings.lighting;
+    var th = {}, tx = {};
+    Object.keys(settings.theme).forEach(function (k) { var v = settings.theme[k]; if (v !== '' && v != null) th[k] = v; });
+    Object.keys(settings.text).forEach(function (k) { var v = String(settings.text[k] || '').trim(); if (v) tx[k] = v; });
     return {
+      theme: th, text: tx,
       background: settings.background,
       artwork: settings.artwork.map(function (a) { return a.builtin ? { builtin: a.builtin, default: a.default } : { name: a.name.trim(), image: a.image, width: a.width, default: a.default }; }),
       builtin_samples: false,      /* the built-in samples to show are listed in artwork, so none are added automatically */
@@ -549,15 +623,90 @@ body { margin: 0; }
   $('envNone').addEventListener('change', function () { settings.lighting.active = -1; touched(); renderEnv(); });
   $('envBoth').addEventListener('change', function (e) { settings.lighting.also_standard = e.target.checked; touched(); });
 
+  /* ----- Theme and wording page ----- */
+  var WORDS = [["Top of the panel", [["title", "Page title", "Glassware Visualiser"], ["intro", "Introduction", "Pick a glass, add your artwork, and see how the print sits on it, as a drink or as a candle."], ["drink", "Drink mode button", "Drink"], ["candle", "Candle mode button", "Candle"]]], ["Save and open", [["save_title", "Heading", "Save or open a design"], ["save_picture", "Button", "Save a picture"], ["save_design", "Button", "Save design file"], ["open_design", "Button", "Open design file"], ["save_note", "Note under the buttons", "A design file keeps the glass, the settings and your artwork. Open it here later, or send it to someone: they can drop it onto the 3D view."]]], ["Step 1: glass", [["step1", "Step title", "Choose a glass"], ["search", "Search box hint", "Search name, code or ml"]]], ["Step 2: glass and fill", [["step2", "Step title", "Glass and fill"], ["glass_tint", "Tint label", "Glass tint"], ["clear_glass", "Tint reset button", "Clear glass"], ["frosted", "Tick box", "Frosted glass"], ["liquid_fill", "Tick box, drink mode", "Liquid fill"], ["wax_fill", "Tick box, candle mode", "Wax fill"], ["liquid_color", "Color label, drink mode", "Liquid color"], ["wax_color", "Color label, candle mode", "Wax color"], ["fill_level", "Slider label", "Fill level"]]], ["Step 3: artwork", [["step3", "Step title", "Add your artwork"], ["upload", "Upload button", "Upload image"], ["print_label", "Print style label", "Print"], ["full_wrap", "Print style button", "Full wrap"], ["two_sides", "Print style button", "2 sides"], ["editing", "Side switch label", "Editing"], ["front", "Side button", "Front"], ["back", "Side button", "Back"], ["remove_white", "Tick box", "Remove white background"], ["one_color", "Tick box", "One color print"], ["matte", "Finish button", "Matte"], ["gloss", "Finish button", "Gloss"]]], ["Step 4: placing", [["step4", "Step title", "Place it on the glass"], ["place_tip", "Tip", "Click the artwork on the glass, then drag it to move and pull the handles to resize. Anything outside the dashed print area is cropped."]]], ["On the 3D view", [["adjust", "Artwork button", "Adjust artwork"], ["upload_view", "Upload button", "Upload"], ["save_view", "Save button", "Save"], ["view_front", "View button", "Front"], ["view_back", "View button", "Back"], ["view_top", "View button", "Top"], ["fit", "Artwork toolbar", "Fit"], ["fill", "Artwork toolbar", "Fill"], ["center", "Artwork toolbar", "Center"], ["repeat", "Artwork toolbar", "Repeat"], ["done", "Artwork toolbar", "Done"]]]];
+  var TH0 = { bg: '#e4e6e8', panel: '#b2b6ba', text: '#1b1f23', accent: '#2b2f33', round: 1 };
+  var THC = [['thBg', 'bg'], ['thPanel', 'panel'], ['thText', 'text'], ['thAccent', 'accent']];
+  function hexMix(a, b, t) {
+    var p = function (h, i) { return parseInt(h.substr(1 + i * 2, 2), 16); }, o = '#';
+    for (var i = 0; i < 3; i++) { var v = Math.round(p(a, i) + (p(b, i) - p(a, i)) * t); o += (v < 16 ? '0' : '') + v.toString(16); }
+    return o;
+  }
+  function hexLum(h) { return (0.2126 * parseInt(h.substr(1, 2), 16) + 0.7152 * parseInt(h.substr(3, 2), 16) + 0.0722 * parseInt(h.substr(5, 2), 16)) / 255; }
+  function contrast(a, b) { var x = hexLum(a) + 0.05, y = hexLum(b) + 0.05; return x > y ? x / y : y / x; }
+  function previewFont(name) {
+    if (!name) return;
+    var id = 'gf-' + name.replace(/[^a-z0-9]/gi, ''); if (document.getElementById(id)) return;
+    var l = document.createElement('link'); l.id = id; l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(name).replace(/%20/g, '+') + ':wght@400;500;600;700&display=swap';
+    document.head.appendChild(l);
+  }
+  function paintMock() {                   /* same sums as the visualiser, so the preview is what customers get */
+    var t = settings.theme, ok = function (v) { return /^#[0-9a-f]{6}$/i.test(v || ''); };
+    var bg = ok(t.bg) ? t.bg : TH0.bg, panel = ok(t.panel) ? t.panel : TH0.panel, fg = ok(t.text) ? t.text : TH0.text, ac = ok(t.accent) ? t.accent : TH0.accent;
+    var dark = hexLum(panel) < 0.35, m = $('mock').style, rd = num(t.round); if (rd == null) rd = 1;
+    var fam = function (n) { return n ? '"' + n.replace(/["\;{}<>]/g, '') + '", system-ui, sans-serif' : '"Familjen Grotesk", system-ui, sans-serif'; };
+    previewFont(t.head_font); previewFont(t.body_font);
+    var set = { bg: bg, panel: panel, fg: fg, accent: ac, field: hexMix(panel, '#ffffff', dark ? 0.1 : 0.38), chip: hexMix(panel, '#ffffff', dark ? 0.18 : 0.6),
+                line: hexMix(panel, fg, 0.32), frame: hexMix(panel, fg, 0.2), muted: hexMix(fg, panel, 0.22), 'accent-fg': hexLum(ac) > 0.55 ? '#111315' : '#ffffff',
+                round: rd, head: fam(t.head_font || t.body_font), body: fam(t.body_font) };
+    Object.keys(set).forEach(function (k) { m.setProperty('--m-' + k, set[k]); });
+    var w = [];
+    if (contrast(fg, panel) < 4.5) w.push('The text is hard to read on the panel (contrast ' + contrast(fg, panel).toFixed(1) + ', aim for 4.5 or more).');
+    if (contrast(ac, panel) < 2.2) w.push('The accent barely stands out from the panel, so the current step and main buttons will be hard to spot.');
+    $('thWarn').hidden = !w.length; $('thWarn').textContent = w.join(' ');
+  }
+  function renderLook() {
+    var t = settings.theme;
+    THC.forEach(function (c) { var v = /^#[0-9a-f]{6}$/i.test(t[c[1]] || '') ? t[c[1]].toLowerCase() : TH0[c[1]]; $(c[0]).value = v; $(c[0] + 'Hex').value = v.toUpperCase(); $(c[0] + 'Hex').removeAttribute('aria-invalid'); });
+    $('thHead').value = t.head_font || ''; $('thBody').value = t.body_font || '';
+    var rd = num(t.round); if (rd == null) rd = 1; $('thRound').value = rd;
+    $('thRoundOut').textContent = rd < 0.15 ? 'square' : rd < 0.8 ? 'slightly rounded' : rd < 1.25 ? 'rounded' : 'very rounded';
+    paintMock();
+    var list = $('wordList'); list.textContent = '';
+    WORDS.forEach(function (g) {
+      list.appendChild(el('div', 'wgroup', g[0]));
+      g[1].forEach(function (w) {
+        var row = el('div', 'wrow'), lab = el('label', '', w[1]), long = w[2].length > 60, inp = document.createElement(long ? 'textarea' : 'input');
+        if (!long) inp.type = 'text';
+        inp.id = 'tx-' + w[0]; lab.htmlFor = inp.id; inp.placeholder = w[2]; inp.value = settings.text[w[0]] || '';
+        inp.addEventListener('input', function () { settings.text[w[0]] = inp.value; touched(); counts(); });
+        row.appendChild(lab); row.appendChild(inp); list.appendChild(row);
+      });
+    });
+    counts();
+  }
+  THC.forEach(function (c) {
+    var col = $(c[0]), hex = $(c[0] + 'Hex');
+    var put = function (v) { settings.theme[c[1]] = v.toLowerCase() === TH0[c[1]] ? '' : v.toLowerCase(); touched(); paintMock(); counts(); };
+    col.addEventListener('input', function () { hex.value = col.value.toUpperCase(); hex.removeAttribute('aria-invalid'); put(col.value); });
+    hex.addEventListener('input', function () {
+      var v = hex.value.trim(); if (v && v[0] !== '#') v = '#' + v;
+      if (/^#[0-9a-f]{6}$/i.test(v)) { hex.removeAttribute('aria-invalid'); col.value = v.toLowerCase(); put(v); } else hex.setAttribute('aria-invalid', 'true');
+    });
+  });
+  [['thHead', 'head_font'], ['thBody', 'body_font']].forEach(function (f) {
+    $(f[0]).addEventListener('input', function () { settings.theme[f[1]] = this.value.trim(); touched(); paintMock(); counts(); });
+  });
+  $('thRound').addEventListener('input', function () {
+    var v = parseFloat(this.value); settings.theme.round = Math.abs(v - 1) < 0.01 ? '' : v; touched();
+    $('thRoundOut').textContent = v < 0.15 ? 'square' : v < 0.8 ? 'slightly rounded' : v < 1.25 ? 'rounded' : 'very rounded'; paintMock(); counts();
+  });
+  $('thReset').addEventListener('click', function () { settings.theme = {}; touched(); renderLook(); });
+  $('txClear').addEventListener('click', function () { settings.text = {}; touched(); renderLook(); });
+
   /* ----- Pages ----- */
   var page = 'glasses';
   function counts() {
     $('nGlasses').textContent = items.length; $('nArtwork').textContent = settings.artwork.length || '';
     $('nLighting').textContent = settings.lighting.active >= 0 ? 'custom' : '';
+    var nt = Object.keys(settings.theme).filter(function (k) { return settings.theme[k] !== '' && settings.theme[k] != null; }).length +
+             Object.keys(settings.text).filter(function (k) { return String(settings.text[k] || '').trim(); }).length;
+    $('nLook').textContent = nt ? nt + (nt === 1 ? ' change' : ' changes') : '';
   }
   function showPage(p) {
     page = p;
-    ['glasses', 'artwork', 'lighting'].forEach(function (k) { $('page-' + k).hidden = k !== p; });
+    ['glasses', 'artwork', 'lighting', 'look'].forEach(function (k) { $('page-' + k).hidden = k !== p; });
     $('pages').querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-selected', b.dataset.page === p ? 'true' : 'false'); });
     $('addBtn').hidden = $('simpleBtn').hidden = p !== 'glasses';
     if (p !== 'glasses') showSimple(false);
@@ -839,7 +988,7 @@ body { margin: 0; }
       if (i >= 0) { items[i] = it; replaced++; } else { items.push(it); added++; }
     });
     var st = data && !Array.isArray(data) && data.settings && readSettings(data.settings);
-    if (st) { renderArt(); renderEnv(); }
+    if (st) { renderArt(); renderEnv(); renderLook(); }
     return from + ': ' + added + ' added' + (replaced ? ', ' + replaced + ' replaced' : '') + (st ? ', settings loaded' : '');
   }
   function addFiles(files) {
@@ -888,7 +1037,7 @@ body { margin: 0; }
   window.addEventListener('beforeunload', function (e) { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
 
   /* ---------- Start: open the glasses.json that sits beside this page, when there is one ---------- */
-  renderArt(); renderEnv();
+  renderArt(); renderEnv(); renderLook();
   if (location.protocol === 'file:') { render(); note = 'Opened from your computer: add your glasses.json to begin.'; status(); }
   else fetch('glasses.json', { cache: 'no-cache' }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(function (d) { addData(d, 'glasses.json'); note = 'Loaded the catalogue that is live beside this page.'; render(); })
