@@ -211,13 +211,31 @@ body {
 .stp.on .stp-head .cur { display: none; }
 .stp .step { background: transparent; border: 1.5px solid var(--line); color: var(--muted); }
 .stp.on .step { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
-.stp.done .step { background: transparent; border-color: var(--accent); color: var(--fg); }
+.stp.done { background: var(--field); border-color: var(--line-strong, var(--line)); }
+.stp.done .step { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.stp.done .stp-title { color: var(--fg); }
+.stp.done .stp-head .cur { color: var(--fg); }
+.stp.todo { border-style: dashed; }
+.stp.todo .stp-head { opacity: 0.62; transition: opacity 0.15s; }
+.stp.todo:hover .stp-head, .stp.todo:focus-within .stp-head { opacity: 1; }
+.stp.on { border-width: 1px; }
+.nextrow { display: flex; justify-content: flex-end; margin-top: 12px; }
+.nextrow .btn { gap: 6px; }
 .stp.done .num { display: none; }
 .stp.done .step::after { content: "\2713"; font-size: 12px; }
 .stp-body { padding: 0 13px 14px; }
 .stp:not(.on) .stp-body { display: none; }
 .stp.flat .stp-body { display: block; }
-.stp.flat .stp-head { padding: 11px 13px 0; }
+.stp.flat .stp-head { padding: 9px 13px 0; display: flex; align-items: center; gap: 8px; }
+.stp.flat .stp-body { padding-bottom: 11px; }
+.stp-head .infobtn { margin-left: auto; flex: none; display: grid; place-items: center; text-align: center; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); font: 600 11px var(--font-ui); cursor: pointer; padding: 0; line-height: 1; }
+.stp-head .infobtn:hover, .stp-head .infobtn[aria-expanded="true"] { background: transparent; border-color: var(--accent); color: var(--fg); }
+.stp-head .infobtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.save3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
+.save3 .btn { flex-direction: column; justify-content: center; gap: 4px; padding: 8px 4px; font-size: 12px; line-height: 1.15; text-align: center; min-width: 0; }
+.save3 + .note, .savemsg + .note { margin-top: 8px; }
+.savemsg { margin-top: 8px; }
+.savemsg:empty { display: none; }
 .stp.flat .stp-title { color: var(--fg); }
 
 .panel {
@@ -446,15 +464,16 @@ body { margin: 0; }
     </div>
 
     <section class="stp flat" id="stp5">
-      <h3 class="stp-head"><span class="stp-title">Save or open a design</span></h3>
+      <h3 class="stp-head"><span class="stp-title">Save or open a design</span><button class="infobtn" id="saveInfo" type="button" aria-expanded="false" aria-controls="shareNote" aria-label="About design files" data-tip="What is a design file?">?</button></h3>
       <div class="stp-body" id="body5">
-      <div class="row-btns" style="margin-top:0">
-        <button class="btn primary" id="savePic" type="button"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.2"/><path d="M2 12l4-3.5 2.5 2 2.5-3 3 4"/></svg> Save a picture</button>
-        <button class="btn" id="saveDesign" type="button"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.5h5l3 3v10H4z"/><path d="M9 1.5v3h3"/></svg> Save design file</button>
-        <button class="btn" id="openDesign" type="button"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 4.5h4l1.5 1.5h7.5v7h-13z"/></svg> Open design file</button>
+      <div class="save3">
+        <button class="btn" id="savePic" type="button"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.2"/><path d="M2 12l4-3.5 2.5 2 2.5-3 3 4"/></svg> Save picture</button>
+        <button class="btn" id="saveDesign" type="button"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.5h5l3 3v10H4z"/><path d="M9 1.5v3h3"/></svg> Save design</button>
+        <button class="btn" id="openDesign" type="button"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 4.5h4l1.5 1.5h7.5v7h-13z"/></svg> Open design</button>
         <input id="designFile" type="file" accept=".glass,.json,application/json" hidden>
       </div>
-      <div class="note" id="shareNote" aria-live="polite">A design file keeps the glass, the settings and your artwork. Open it here later, or send it to someone: they can drop it onto the 3D view.</div>
+      <div class="note savemsg" id="saveMsg" aria-live="polite"></div>
+      <div class="note" id="shareNote" hidden>A design file keeps the glass, the settings and your artwork. Open it here later, or send it to someone: they can drop it onto the 3D view.</div>
       </div>
     </section>
 
@@ -1219,12 +1238,12 @@ body { margin: 0; }
 
   /* The steps down the side: one open at a time. Step 4 is the one that works on the glass itself,
      so opening it picks the artwork up and closing it puts it down. */
-  var curStep = 1;
+  var curStep = 1, reached = 1;
   function goStep(n) {
-    curStep = n;
+    curStep = n; if (n > reached) reached = n;
     for (var i = 1; i <= 4; i++) {
-      var el = $('stp' + i), on = i === n;
-      el.classList.toggle('on', on); el.classList.toggle('done', i < n);
+      var el = $('stp' + i), on = i === n, done = !on && i < reached;      /* finished steps stay finished when you go back to one */
+      el.classList.toggle('on', on); el.classList.toggle('done', done); el.classList.toggle('todo', !on && !done);
       el.querySelector('.stp-head button').setAttribute('aria-expanded', on ? 'true' : 'false');
     }
     if (n === 4) { if (!selected && art) { faceArtwork(); setSelected(true); } }
@@ -1233,6 +1252,23 @@ body { margin: 0; }
   }
   document.querySelectorAll('.stp-head button').forEach(function (b) {
     b.addEventListener('click', function () { goStep(+b.dataset.step); });
+  });
+  /* A "Next" button closes each step, named after the step it leads to. */
+  function nextLabels() {
+    document.querySelectorAll('.nextbtn').forEach(function (b) {
+      b.querySelector('.lbl').textContent = ((typeof TX === 'object' && TX && TX.next) || 'Next') + ': ' + $('stp' + b.dataset.next).querySelector('.stp-title').textContent;
+    });
+  }
+  [1, 2, 3].forEach(function (i) {
+    var row = document.createElement('div'), b = document.createElement('button');
+    row.className = 'nextrow'; b.type = 'button'; b.className = 'btn primary nextbtn'; b.dataset.next = i + 1;
+    b.innerHTML = '<span class="lbl"></span><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l5 5-5 5"/></svg>';
+    b.addEventListener('click', function () { goStep(i + 1); $('stp' + (i + 1)).scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
+    row.appendChild(b); $('body' + i).appendChild(row);
+  });
+  nextLabels();
+  $('saveInfo').addEventListener('click', function () {
+    var n = $('shareNote'); n.hidden = !n.hidden; this.setAttribute('aria-expanded', n.hidden ? 'false' : 'true'); postHeight();
   });
 
   /* Embedded in another page: tell it how tall this is, so the frame can grow and there is no scrollbar inside a scrollbar. */
@@ -1843,9 +1879,9 @@ body { margin: 0; }
     x.fillText($('specMeta').textContent, 16 * k, h - 31 * k); x.fillText($('specPrint').textContent + (SIDES[cur].name ? '  ·  ' + SIDES[cur].name : ''), 16 * k, h - 14 * k);
     x.globalAlpha = 1;
     c.toBlob(function (blob) {
-      if (!blob) { $('shareNote').textContent = 'The picture could not be made in this browser.'; return; }
+      if (!blob) { $('saveMsg').textContent = 'The picture could not be made in this browser.'; return; }
       download(blob, 'glass-' + G.id + '.png');
-      $('shareNote').textContent = 'Picture saved as glass-' + G.id + '.png.';
+      $('saveMsg').textContent = 'Picture saved as glass-' + G.id + '.png.';
     }, 'image/png');
   }
   function download(blob, name) {
@@ -1868,10 +1904,10 @@ body { margin: 0; }
                      width: o.fw, height: o.fh, across: o.cx, up: o.cv, repeat: o.repX, rows: o.repY, gap: o.gx, row_gap: o.gy };
     });
     download(new Blob([JSON.stringify(d)], { type: 'application/json' }), 'glass-' + G.id + '-design.glass');
-    $('shareNote').textContent = 'Design saved as glass-' + G.id + '-design.glass. Open it here later, or send it to someone else.';
+    $('saveMsg').textContent = 'Design saved as glass-' + G.id + '-design.glass. Open it here later, or send it to someone else.';
   }
   function openDesign(d, fileName) {
-    var note = $('shareNote'), sides = (d.sides || []).slice(0, 2), msg = [];
+    var note = $('saveMsg'), sides = (d.sides || []).slice(0, 2), msg = [];
     Promise.all(sides.map(function (o) {
       return new Promise(function (done) {
         if (!o || !o.image) { done(null); return; }
@@ -1915,12 +1951,12 @@ body { margin: 0; }
   }
   function readDesignFile(file) {          /* a .glass design, or (for testing) a glasses.json catalogue */
     var rd = new FileReader();
-    rd.onerror = function () { $('shareNote').textContent = file.name + ' could not be read.'; };
+    rd.onerror = function () { $('saveMsg').textContent = file.name + ' could not be read.'; };
     rd.onload = function () {
-      var d; try { d = JSON.parse(rd.result); } catch (e) { $('shareNote').textContent = file.name + ' is not a design file.'; return; }
+      var d; try { d = JSON.parse(rd.result); } catch (e) { $('saveMsg').textContent = file.name + ' is not a design file.'; return; }
       if (d && d.type === 'glassware-design') openDesign(d, file.name);
       else if (d && (d.glasses || Array.isArray(d))) loadCatalogueFile(file);
-      else $('shareNote').textContent = file.name + ' is not a design file.';
+      else $('saveMsg').textContent = file.name + ' is not a design file.';
     };
     rd.readAsText(file);
   }
@@ -2078,7 +2114,7 @@ body { margin: 0; }
       n.nodeValue = (/^\s/.test(n.nodeValue) ? ' ' : '') + (TX[k] || textWas[k]);
     });
     if (TX.title) document.title = TX.title;
-    syncFill(); postHeight();
+    syncFill(); nextLabels(); postHeight();
   }
   function applySettings(st) {
     st = st || {};
