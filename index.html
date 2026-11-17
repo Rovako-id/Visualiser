@@ -341,7 +341,7 @@ select {
   :root { --stage-h: min(64vh, 520px); }
   html.embed { --stage-h: clamp(340px, 86vw, 560px); }
   .app { grid-template-columns: minmax(0, 1fr); }
-  .stage { position: relative; }   /* not sticky on a phone, but still the anchor for the controls that float over it */
+  .stage { position: relative; top: auto; }   /* not sticky on a phone (top reset, or it would sit 16 px low and touch the panel), but still the anchor for the controls that float over it */
   .hint { display: none; }
   .hud { max-width: 90%; }
   /* the view is short and wide here, so the glass details and Save step aside while artwork is being moved */
