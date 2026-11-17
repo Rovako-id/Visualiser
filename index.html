@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="2026-11-16">
-<!-- Version 11-16 (16 November 2026) -->
+<meta name="version" content="2026-11-17">
+<!-- Version 11-17 (17 November 2026) -->
 <title>Glassware Visualiser</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -236,8 +236,21 @@ body {
 .save3 + .note, .savemsg + .note { margin-top: 8px; }
 .savemsg { margin-top: 8px; }
 .seg .infobtn { margin-left: 4px; }
-.infonote { margin: 0 0 12px; padding: 8px 10px; border-radius: calc(9px * var(--round)); background: var(--chip); color: var(--fg); line-height: 1.4; }
-.colornote { margin: -2px 0 12px; line-height: 1.4; }
+.panel { position: relative; }
+.infopop {
+  position: absolute; z-index: 30; width: min(280px, calc(100% - 16px));
+  padding: 10px 12px; border-radius: calc(10px * var(--round)); background: var(--fg); color: var(--panel);
+  font-size: 12.5px; line-height: 1.45; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.22);
+}
+.infopop::before { content: ""; position: absolute; top: -5px; left: calc(var(--arrow, 24px) - 5px); width: 10px; height: 10px; background: inherit; transform: rotate(45deg); }
+.discbtn { display: inline-flex; align-items: center; gap: 5px; margin-left: 4px; padding: 4px 2px; border: 0; background: none; color: var(--muted);
+  font: 500 12px var(--font-ui); cursor: pointer; }
+.discbtn .lbl { text-decoration: underline dotted; text-underline-offset: 3px; }
+.discbtn .q { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 10px; font-weight: 600; }
+.discbtn:hover, .discbtn[aria-expanded="true"] { color: var(--fg); }
+.discbtn:hover .q, .discbtn[aria-expanded="true"] .q { border-color: var(--accent); }
+.discbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.row-btns:has(> .discbtn) { align-items: center; }
 .savemsg:empty { display: none; }
 .stp.flat .stp-title { color: var(--fg); }
 
@@ -254,7 +267,7 @@ h1 { margin: 0; font-family: var(--font-head); font-size: 21px; letter-spacing: 
 .lede { margin: 6px 0 0; color: var(--muted); }
 h2 { margin: 0 0 10px; font: 600 11px var(--font-ui); letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 8px; }
 .step { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: var(--accent-fg); font: 600 11px var(--font-mono); letter-spacing: 0; }
-.tip { display: flex; gap: 10px; align-items: center; margin-top: 12px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: calc(10px * var(--round)); color: var(--muted); font-size: 13px; }
+.tip { display: flex; gap: 9px; align-items: center; margin-top: 12px; padding: 7px 10px; line-height: 1.35; border: 1px dashed var(--line); border-radius: calc(10px * var(--round)); color: var(--muted); font-size: 13px; }
 .tip svg { flex: none; }
 .seg { display: flex; gap: 6px; margin-top: 12px; align-items: center; }
 .seg .lbl { margin-right: 4px; }
@@ -467,7 +480,7 @@ body { margin: 0; }
     </div>
 
     <section class="stp flat" id="stp5">
-      <h3 class="stp-head"><span class="stp-title">Save or open a design</span><button class="infobtn" id="saveInfo" type="button" aria-expanded="false" aria-controls="shareNote" aria-label="About design files" data-tip="What is a design file?">?</button></h3>
+      <h3 class="stp-head"><span class="stp-title">Save or open a design</span><button class="infobtn" id="saveInfo" type="button" data-info="shareNote" aria-expanded="false" aria-controls="shareNote" aria-label="About design files">?</button></h3>
       <div class="stp-body" id="body5">
       <div class="save3">
         <button class="btn" id="savePic" type="button"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="3" width="13" height="10" rx="1.5"/><circle cx="5.5" cy="6.5" r="1.2"/><path d="M2 12l4-3.5 2.5 2 2.5-3 3 4"/></svg> Save picture</button>
@@ -476,7 +489,7 @@ body { margin: 0; }
         <input id="designFile" type="file" accept=".glass,.json,application/json" hidden>
       </div>
       <div class="note savemsg" id="saveMsg" aria-live="polite"></div>
-      <div class="note" id="shareNote" hidden>A design file keeps the glass, the settings and your artwork. Open it here later, or send it to someone: they can drop it onto the 3D view.</div>
+      <div class="infopop" id="shareNote" role="note" hidden>A design file keeps the glass, the settings and your artwork. Open it here later, or send it to someone: they can drop it onto the 3D view.</div>
       </div>
     </section>
 
@@ -535,15 +548,15 @@ body { margin: 0; }
     </section>
 
     <section class="stp" id="stp3">
-      <h3 class="stp-head"><button type="button" aria-expanded="false" aria-controls="body3" data-step="3"><span class="step"><span class="num">3</span></span><span class="stp-title">Add your artwork</span><span class="cur" id="artCur"></span></button></h3>
+      <h3 class="stp-head"><button type="button" aria-expanded="false" aria-controls="body3" data-step="3"><span class="step"><span class="num">3</span></span><span class="stp-title">Add and place your artwork</span><span class="cur" id="artCur"></span></button></h3>
       <div class="stp-body" id="body3">
       <div class="seg" id="printMode" role="group" aria-label="Print style" style="margin:0 0 8px">
         <span class="lbl">Print</span>
         <button class="chip" type="button" data-two="0" aria-pressed="true" title="One print area all the way round, with a gap where the ends meet">Full wrap</button>
         <button class="chip" type="button" data-two="1" aria-pressed="false" title="Two print areas on opposite sides, with a gap between them on each side">2 sides</button>
-        <button class="infobtn" type="button" data-info="printHelp" aria-expanded="false" aria-controls="printHelp" aria-label="About the print styles" data-tip="Full wrap or 2 sides?">?</button>
+        <button class="infobtn" type="button" data-info="printHelp" aria-expanded="false" aria-controls="printHelp" aria-label="About the print styles">?</button>
       </div>
-      <div class="note infonote" id="printHelp" hidden>Full wrap prints with one screen, so the design can run as one continuous band around the glass. 2 sides prints a separate design on the front and the back, so each design has to be narrower.</div>
+      <div class="infopop" id="printHelp" role="note" hidden>Full wrap prints with one screen, so the design can run as one continuous band around the glass. 2 sides prints a separate design on the front and the back, so each design has to be narrower.</div>
       <div class="seg" id="sideTabs" role="group" aria-label="Side being edited" style="margin:4px 0 12px" hidden>
         <span class="lbl">Editing</span>
         <button class="chip" type="button" data-side="0" aria-pressed="true">Front</button>
@@ -559,8 +572,9 @@ body { margin: 0; }
       <div class="row-btns">
         <button class="btn primary" id="uploadBtn" type="button">Upload image</button>
         <input id="file" type="file" accept="image/*" hidden>
+        <button class="discbtn" id="colorBtn" type="button" data-info="colorNote" aria-expanded="false" aria-controls="colorNote"><span class="lbl">Disclaimer</span><span class="q" aria-hidden="true">?</span></button>
       </div>
-      <div class="note colornote" id="colorNote">We print with a limited number of ink colors, so some artwork may not work exactly as uploaded. The designers at ARC are happy to work with you to get the best-looking result.</div>
+      <div class="infopop" id="colorNote" role="note" hidden>We print with a limited number of ink colors, so some artwork may not work exactly as uploaded. The designers at ARC are happy to work with you to get the best-looking result.</div>
       <div class="row-btns" id="samples" role="group" aria-label="Sample artwork"></div>
       <div class="checks">
         <label class="check"><input type="checkbox" id="clearBg"> Remove white background</label>
@@ -574,13 +588,7 @@ body { margin: 0; }
         <button class="chip" type="button" data-finish="matte" aria-pressed="true">Matte</button>
         <button class="chip" type="button" data-finish="gloss" aria-pressed="false">Gloss</button>
       </div>
-      </div>
-    </section>
-
-    <section class="stp" id="stp4">
-      <h3 class="stp-head"><button type="button" aria-expanded="false" aria-controls="body4" data-step="4"><span class="step"><span class="num">4</span></span><span class="stp-title">Place it on the glass</span><span class="cur" id="placeCur"></span></button></h3>
-      <div class="stp-body" id="body4">
-      <div class="tip"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="9" height="9"/><rect x="1.8" y="1.8" width="3.4" height="3.4" fill="currentColor"/><rect x="10.8" y="10.8" width="3.4" height="3.4" fill="currentColor"/></svg><span>Click the artwork on the glass, then drag it to move and pull the handles to resize. Anything outside the dashed print area is cropped.</span></div>
+      <div class="tip"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="9" height="9"/><rect x="1.8" y="1.8" width="3.4" height="3.4" fill="currentColor"/><rect x="10.8" y="10.8" width="3.4" height="3.4" fill="currentColor"/></svg><span>Drag the artwork on the glass to move it, and pull a corner to resize. Only the part inside the dashed print area is printed.</span></div>
       </div>
     </section>
 
@@ -1056,7 +1064,7 @@ body { margin: 0; }
     /* dashed outline of the print area, drawn at 4 px per mm so the line weight is even */
     var wArc = phiMax * rAvg, gw = clamp(Math.round(wArc * 40), 64, 2048), gh = clamp(Math.round((hi - lo) * 40), 64, 2048);
     var gc = cv(gw, gh), gx = gc.getContext('2d');
-    gx.strokeStyle = stageDark ? '#e6e8ea' : '#30363b'; gx.lineWidth = 3; gx.setLineDash([14, 9]); gx.strokeRect(2, 2, gw - 4, gh - 4);
+    gx.strokeStyle = '#ffffff'; gx.lineWidth = 3;   /* drawn white, colored by the material each frame */ gx.setLineDash([14, 9]); gx.strokeRect(2, 2, gw - 4, gh - 4);
     if (guideTex) guideTex.dispose();
     guideTex = new THREE.CanvasTexture(gc); guideTex.anisotropy = 4;
     if (!guideMat) guideMat = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, toneMapped: false, side: THREE.FrontSide, opacity: 0.7 });
@@ -1180,7 +1188,6 @@ body { margin: 0; }
     var e = 0.005, cropped = Math.abs(a.theta) + a.phi / 2 > band.phiMax / 2 + e || a.cy - a.h / 2 < band.lo - e || a.cy + a.h / 2 > band.hi + e;
     $('sizeOut').textContent = fArea(a.w, a.h);
     $('cropTag').hidden = !cropped || rx;
-    $('placeCur').textContent = fArea(a.w, a.h);
     $('sideTag').hidden = !S.two; $('sideTag').textContent = cur ? 'Back' : 'Front';
   }
 
@@ -1244,20 +1251,24 @@ body { margin: 0; }
 
   /* The steps down the side: one open at a time. Step 4 is the one that works on the glass itself,
      so opening it picks the artwork up and closing it puts it down. */
-  var curStep = 1, reached = 1;
-  function goStep(n) {
+  var curStep = 1, reached = 1, NSTEPS = 3;
+  /* Opening a step keeps the page still: the step you asked for stays where your eye already is,
+     so nothing jumps off the screen when the step above it closes. */
+  function goStep(n, anchor) {
+    var ref = anchor === 'head' ? $('stp' + n) : anchor === 'next' ? $('stp' + curStep) : null, before = ref ? ref.getBoundingClientRect().top : 0;
     curStep = n; if (n > reached) reached = n;
-    for (var i = 1; i <= 4; i++) {
+    for (var i = 1; i <= NSTEPS; i++) {
       var el = $('stp' + i), on = i === n, done = !on && i < reached;      /* finished steps stay finished when you go back to one */
       el.classList.toggle('on', on); el.classList.toggle('done', done); el.classList.toggle('todo', !on && !done);
       el.querySelector('.stp-head button').setAttribute('aria-expanded', on ? 'true' : 'false');
     }
-    if (n === 4) { if (!selected && art) { faceArtwork(); setSelected(true); } }
+    if (n === NSTEPS) { if (!selected && art) { faceArtwork(); setSelected(true); } }   /* the artwork step picks the artwork up on the glass */
     else if (selected) setSelected(false);
+    if (ref) holdScroll($('stp' + n).getBoundingClientRect().top - before);
     postHeight();
   }
   document.querySelectorAll('.stp-head button').forEach(function (b) {
-    b.addEventListener('click', function () { goStep(+b.dataset.step); });
+    b.addEventListener('click', function () { goStep(+b.dataset.step, 'head'); });
   });
   /* A "Next" button closes each step, named after the step it leads to. */
   function nextLabels() {
@@ -1265,25 +1276,60 @@ body { margin: 0; }
       b.querySelector('.lbl').textContent = ((typeof TX === 'object' && TX && TX.next) || 'Next') + ': ' + $('stp' + b.dataset.next).querySelector('.stp-title').textContent;
     });
   }
-  [1, 2, 3].forEach(function (i) {
+  [1, 2].forEach(function (i) {
     var row = document.createElement('div'), b = document.createElement('button');
     row.className = 'nextrow'; b.type = 'button'; b.className = 'btn primary nextbtn'; b.dataset.next = i + 1;
     b.innerHTML = '<span class="lbl"></span><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3l5 5-5 5"/></svg>';
-    b.addEventListener('click', function () { goStep(i + 1); $('stp' + (i + 1)).scrollIntoView({ block: 'nearest', behavior: 'smooth' }); });
+    b.addEventListener('click', function () { goStep(i + 1, 'next'); });
     row.appendChild(b); $('body' + i).appendChild(row);
   });
   nextLabels();
-  document.querySelectorAll('.infobtn[data-info]').forEach(function (b) {
-    b.addEventListener('click', function () {
-      var n = $(b.dataset.info); n.hidden = !n.hidden; b.setAttribute('aria-expanded', n.hidden ? 'false' : 'true'); postHeight();
+  /* Little explanations behind a "?": they pop up over the panel instead of pushing it longer.
+     Hover to read on a computer, click (or tap) to keep one open; click anywhere else or Esc to close. */
+  var infoOpen = null, infoPinned = false, infoTimer = 0;
+  function placeInfo(btn, pop) {
+    var host = $('panelBox') || document.querySelector('.panel'), hb = host.getBoundingClientRect(), bb = btn.getBoundingClientRect();
+    pop.style.left = '0px'; pop.style.top = '0px';
+    var w = pop.offsetWidth, x = Math.min(Math.max(bb.left + bb.width / 2 - hb.left - w / 2, 8), hb.width - w - 8);
+    pop.style.left = x + 'px'; pop.style.top = (bb.bottom - hb.top + 8) + 'px';
+    pop.style.setProperty('--arrow', (bb.left + bb.width / 2 - hb.left - x) + 'px');
+  }
+  function showInfo(btn, pin) {
+    clearTimeout(infoTimer);
+    if (infoOpen && infoOpen !== btn) hideInfo();
+    var pop = $(btn.dataset.info); pop.hidden = false; placeInfo(btn, pop);
+    btn.setAttribute('aria-expanded', 'true'); infoOpen = btn; infoPinned = infoPinned || !!pin;
+  }
+  function hideInfo() {
+    if (!infoOpen) return;
+    $(infoOpen.dataset.info).hidden = true; infoOpen.setAttribute('aria-expanded', 'false'); infoOpen = null; infoPinned = false;
+  }
+  document.querySelectorAll('[data-info]').forEach(function (b) {
+    var pop = $(b.dataset.info);
+    b.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (infoOpen === b && infoPinned) hideInfo(); else showInfo(b, true);
     });
+    if (canHover) {
+      var later = function () { clearTimeout(infoTimer); infoTimer = setTimeout(function () { if (!infoPinned) hideInfo(); }, 220); };
+      b.addEventListener('mouseenter', function () { clearTimeout(infoTimer); infoTimer = setTimeout(function () { showInfo(b, false); }, 200); });
+      b.addEventListener('mouseleave', later);
+      pop.addEventListener('mouseenter', function () { clearTimeout(infoTimer); });
+      pop.addEventListener('mouseleave', later);
+    }
+    pop.addEventListener('click', function (e) { e.stopPropagation(); });
   });
-  $('saveInfo').addEventListener('click', function () {
-    var n = $('shareNote'); n.hidden = !n.hidden; this.setAttribute('aria-expanded', n.hidden ? 'false' : 'true'); postHeight();
-  });
+  document.addEventListener('click', hideInfo);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && infoOpen) { var b = infoOpen; hideInfo(); b.focus(); } });
+  addEventListener('resize', function () { if (infoOpen) placeInfo(infoOpen, $(infoOpen.dataset.info)); });
 
   /* Embedded in another page: tell it how tall this is, so the frame can grow and there is no scrollbar inside a scrollbar. */
-  var postHeight = function () {};
+  var postHeight = function () {}, sendNow = null;
+  function holdScroll(d) {
+    if (Math.abs(d) < 1) return;
+    if (sendNow) { sendNow(); try { parent.postMessage({ glasswareScrollBy: Math.round(d) }, '*'); } catch (e) {} }
+    else window.scrollBy(0, d);
+  }
   if (window.self !== window.top) {
     document.documentElement.classList.add('embed');
     var lastH = 0, send = function () {
@@ -1292,7 +1338,7 @@ body { margin: 0; }
       lastH = h;
       try { parent.postMessage({ glasswareHeight: h }, '*'); } catch (e) {}
     };
-    postHeight = function () { requestAnimationFrame(send); };
+    postHeight = function () { requestAnimationFrame(send); }; sendNow = send;
     addEventListener('load', postHeight); addEventListener('resize', postHeight);
     if (window.ResizeObserver) new ResizeObserver(send).observe(document.body);
   }
@@ -1346,6 +1392,15 @@ body { margin: 0; }
            Math.abs(h.theta) <= band.phiMax / 2 && h.y >= band.lo && h.y <= band.hi;
   }
 
+  var GUIDE_PINK = '#ff8fc1', guideK = 0, guideCol = new THREE.Color(), guideGray = new THREE.Color(), guidePink = new THREE.Color(GUIDE_PINK);
+  function tintGuides(dt) {                  /* eases to pink in about 0.2 s while the artwork is moving, back to gray over about 0.8 s */
+    if (!guideMat) return;
+    var want = editing ? 1 : 0, tau = want > guideK ? 0.12 : 0.45;
+    guideK += (want - guideK) * (1 - Math.exp(-dt / tau));
+    guideGray.set(stageDark ? '#e6e8ea' : '#30363b');
+    guideMat.color.copy(guideCol.copy(guideGray).lerp(guidePink, guideK));
+    guideMat.opacity = 0.7 + 0.25 * guideK;
+  }
   function syncGuides() { guideGroup.visible = S.guides || selected; }   /* the print area always shows while editing */
   var turn = null;
   function lookFrom(v) {                   /* Front: the middle of the print. Back: opposite, where a full wrap meets. Top: from above. */
@@ -1401,7 +1456,7 @@ body { margin: 0; }
     if (v && !art) return;
     selected = v; hintEl.textContent = v ? HINT_EDIT : HINT_IDLE;
     stage.classList.toggle('editing', v);
-    if (v && curStep !== 4) goStep(4);        /* picking the artwork up on the glass opens the step that goes with it */
+    if (v && curStep !== NSTEPS) goStep(NSTEPS);        /* picking the artwork up on the glass opens the step that goes with it */
     $('editArt').hidden = v; if (!v) $('artbar').hidden = true;
     syncGuides();
     if (!v) resumeAt = performance.now() + 1000;
@@ -1700,7 +1755,7 @@ body { margin: 0; }
       var alpha = hasAlpha(c);
       setSource(c, file.name, alpha ? 'Transparent areas stay clear glass.' : 'No transparency, so it prints as a solid sleeve. Tick Remove white background to print only the ink.', !alpha);
       document.querySelectorAll('#samples .chip').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
-      setPlacement({ fw: 0.6, cv: 0.5 }); goStep(4); setSelected(true);   /* start editing: handles appear on the glass */
+      setPlacement({ fw: 0.6, cv: 0.5 }); goStep(NSTEPS); setSelected(true);   /* start editing: handles appear on the glass */
     };
     img.onerror = function () { URL.revokeObjectURL(url); var n = $('artNote'); n.textContent = 'This image could not be read. Try a PNG or JPG.'; n.className = 'note warn'; };
     img.src = url;
@@ -2075,6 +2130,7 @@ body { margin: 0; }
   function applyTheme(th) {
     var r = document.documentElement.style, ok = function (v) { return /^#[0-9a-f]{6}$/i.test(v || ''); };
     THEME_VARS.forEach(function (v) { r.removeProperty(v); }); r.removeProperty('color-scheme');
+    guidePink.set(GUIDE_PINK);
     if (!th) return;
     if (ok(th.bg) || ok(th.panel) || ok(th.text) || ok(th.accent)) {       /* four colors in, the in-between shades worked out */
       var bg = ok(th.bg) ? th.bg : '#e4e6e8', panel = ok(th.panel) ? th.panel : '#b2b6ba', fg = ok(th.text) ? th.text : '#1b1f23', ac = ok(th.accent) ? th.accent : '#2b2f33';
@@ -2089,17 +2145,18 @@ body { margin: 0; }
     if (th.body_font) { loadFont(th.body_font); r.setProperty('--font-ui', fam(th.body_font)); }
     if (th.head_font) { loadFont(th.head_font); r.setProperty('--font-head', fam(th.head_font)); }
     var rd = parseFloat(th.round); if (isFinite(rd)) r.setProperty('--round', String(clamp(rd, 0, 2)));
+    guidePink.set(ok(th.guide) ? th.guide : GUIDE_PINK);
     postHeight();
   }
   /* Wording: each key points at the piece of the page it renames. "^" means the label wrapped round that control. */
   var TEXTS = {
     title: '.head-row h1', intro: '.lede', drink: '#mode [data-mode="drink"]', candle: '#mode [data-mode="candle"]',
     save_title: '#stp5 .stp-title', save_picture: '#savePic', save_design: '#saveDesign', open_design: '#openDesign', save_note: '#shareNote',
-    step1: '#stp1 .stp-title', step2: '#stp2 .stp-title', step3: '#stp3 .stp-title', step4: '#stp4 .stp-title',
+    step1: '#stp1 .stp-title', step2: '#stp2 .stp-title', step3: '#stp3 .stp-title',
     search: '#glassSearch@placeholder', glass_tint: 'label[for="tint"]', clear_glass: '#tintReset', frosted: '^#frosted', fill_level: 'label[for="level"]',
     upload: '#uploadBtn', print_help: '#printHelp', color_note: '#colorNote', print_label: '#printMode .lbl', full_wrap: '#printMode [data-two="0"]', two_sides: '#printMode [data-two="1"]',
     editing: '#sideTabs .lbl', front: '#sideTabs [data-side="0"]', back: '#sideTabs [data-side="1"]',
-    remove_white: '^#clearBg', one_color: '^#inkOn', matte: '#finish [data-finish="matte"]', gloss: '#finish [data-finish="gloss"]', place_tip: '#stp4 .tip span',
+    remove_white: '^#clearBg', one_color: '^#inkOn', matte: '#finish [data-finish="matte"]', gloss: '#finish [data-finish="gloss"]', place_tip: '#stp3 .tip span', disclaimer: '#colorBtn .lbl',
     adjust: '#editArt .lbl', upload_view: '#uploadBtn2 .lbl', save_view: '#saveBtn2 .lbl',
     view_front: '#viewPop [data-view="front"]', view_back: '#viewPop [data-view="back"]', view_top: '#viewPop [data-view="top"]',
     fit: '#fitArea .lbl', fill: '#fillArea .lbl', center: '#centerArt .lbl', repeat: '#repX .lbl', done: '#doneArt .lbl'
@@ -2324,7 +2381,7 @@ body { margin: 0; }
         var u = Math.min(1, (now - turn.t0) / 450); var ue = u * u * (3 - 2 * u); az = turn.from + turn.by * ue; if (turn.p1 != null) pol = turn.p0 + (turn.p1 - turn.p0) * ue; updateCam();
         if (u >= 1 || dragging) turn = null;
       }
-      watchSpeed((now - last0) / 1000);
+      watchSpeed((now - last0) / 1000); tintGuides(dt);
       renderer.render(scene, camera);
       updateOverlay(); updateGumball();
       requestAnimationFrame(frame);
