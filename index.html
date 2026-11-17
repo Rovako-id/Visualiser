@@ -228,13 +228,16 @@ body {
 .stp.flat .stp-body { display: block; }
 .stp.flat .stp-head { padding: 9px 13px 0; display: flex; align-items: center; gap: 8px; }
 .stp.flat .stp-body { padding-bottom: 11px; }
-.stp-head .infobtn { margin-left: auto; flex: none; display: grid; place-items: center; text-align: center; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); font: 600 11px var(--font-ui); cursor: pointer; padding: 0; line-height: 1; }
-.stp-head .infobtn:hover, .stp-head .infobtn[aria-expanded="true"] { background: transparent; border-color: var(--accent); color: var(--fg); }
-.stp-head .infobtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.infobtn, .stp-head .infobtn { margin-left: auto; flex: none; display: grid; place-items: center; text-align: center; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--line); background: transparent; color: var(--muted); font: 600 11px var(--font-ui); cursor: pointer; padding: 0; line-height: 1; }
+.infobtn:hover, .infobtn[aria-expanded="true"], .stp-head .infobtn:hover {  background: transparent; border-color: var(--accent); color: var(--fg); }
+.infobtn:focus-visible, .stp-head .infobtn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .save3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 8px; }
 .save3 .btn { flex-direction: column; justify-content: center; gap: 4px; padding: 8px 4px; font-size: 12px; line-height: 1.15; text-align: center; min-width: 0; }
 .save3 + .note, .savemsg + .note { margin-top: 8px; }
 .savemsg { margin-top: 8px; }
+.seg .infobtn { margin-left: 4px; }
+.infonote { margin: 0 0 12px; padding: 8px 10px; border-radius: calc(9px * var(--round)); background: var(--chip); color: var(--fg); line-height: 1.4; }
+.colornote { margin: -2px 0 12px; line-height: 1.4; }
 .savemsg:empty { display: none; }
 .stp.flat .stp-title { color: var(--fg); }
 
@@ -534,12 +537,14 @@ body { margin: 0; }
     <section class="stp" id="stp3">
       <h3 class="stp-head"><button type="button" aria-expanded="false" aria-controls="body3" data-step="3"><span class="step"><span class="num">3</span></span><span class="stp-title">Add your artwork</span><span class="cur" id="artCur"></span></button></h3>
       <div class="stp-body" id="body3">
-      <div class="seg" id="printMode" role="group" aria-label="Print style" style="margin:0 0 12px">
+      <div class="seg" id="printMode" role="group" aria-label="Print style" style="margin:0 0 8px">
         <span class="lbl">Print</span>
         <button class="chip" type="button" data-two="0" aria-pressed="true" title="One print area all the way round, with a gap where the ends meet">Full wrap</button>
         <button class="chip" type="button" data-two="1" aria-pressed="false" title="Two print areas on opposite sides, with a gap between them on each side">2 sides</button>
+        <button class="infobtn" type="button" data-info="printHelp" aria-expanded="false" aria-controls="printHelp" aria-label="About the print styles" data-tip="Full wrap or 2 sides?">?</button>
       </div>
-      <div class="seg" id="sideTabs" role="group" aria-label="Side being edited" style="margin:0 0 12px" hidden>
+      <div class="note infonote" id="printHelp" hidden>Full wrap prints with one screen, so the design can run as one continuous band around the glass. 2 sides prints a separate design on the front and the back, so each design has to be narrower.</div>
+      <div class="seg" id="sideTabs" role="group" aria-label="Side being edited" style="margin:4px 0 12px" hidden>
         <span class="lbl">Editing</span>
         <button class="chip" type="button" data-side="0" aria-pressed="true">Front</button>
         <button class="chip" type="button" data-side="1" aria-pressed="false">Back</button>
@@ -555,6 +560,7 @@ body { margin: 0; }
         <button class="btn primary" id="uploadBtn" type="button">Upload image</button>
         <input id="file" type="file" accept="image/*" hidden>
       </div>
+      <div class="note colornote" id="colorNote">We print with a limited number of ink colors, so some artwork may not work exactly as uploaded. The designers at ARC are happy to work with you to get the best-looking result.</div>
       <div class="row-btns" id="samples" role="group" aria-label="Sample artwork"></div>
       <div class="checks">
         <label class="check"><input type="checkbox" id="clearBg"> Remove white background</label>
@@ -1267,6 +1273,11 @@ body { margin: 0; }
     row.appendChild(b); $('body' + i).appendChild(row);
   });
   nextLabels();
+  document.querySelectorAll('.infobtn[data-info]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var n = $(b.dataset.info); n.hidden = !n.hidden; b.setAttribute('aria-expanded', n.hidden ? 'false' : 'true'); postHeight();
+    });
+  });
   $('saveInfo').addEventListener('click', function () {
     var n = $('shareNote'); n.hidden = !n.hidden; this.setAttribute('aria-expanded', n.hidden ? 'false' : 'true'); postHeight();
   });
@@ -2086,7 +2097,7 @@ body { margin: 0; }
     save_title: '#stp5 .stp-title', save_picture: '#savePic', save_design: '#saveDesign', open_design: '#openDesign', save_note: '#shareNote',
     step1: '#stp1 .stp-title', step2: '#stp2 .stp-title', step3: '#stp3 .stp-title', step4: '#stp4 .stp-title',
     search: '#glassSearch@placeholder', glass_tint: 'label[for="tint"]', clear_glass: '#tintReset', frosted: '^#frosted', fill_level: 'label[for="level"]',
-    upload: '#uploadBtn', print_label: '#printMode .lbl', full_wrap: '#printMode [data-two="0"]', two_sides: '#printMode [data-two="1"]',
+    upload: '#uploadBtn', print_help: '#printHelp', color_note: '#colorNote', print_label: '#printMode .lbl', full_wrap: '#printMode [data-two="0"]', two_sides: '#printMode [data-two="1"]',
     editing: '#sideTabs .lbl', front: '#sideTabs [data-side="0"]', back: '#sideTabs [data-side="1"]',
     remove_white: '^#clearBg', one_color: '^#inkOn', matte: '#finish [data-finish="matte"]', gloss: '#finish [data-finish="gloss"]', place_tip: '#stp4 .tip span',
     adjust: '#editArt .lbl', upload_view: '#uploadBtn2 .lbl', save_view: '#saveBtn2 .lbl',
