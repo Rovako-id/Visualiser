@@ -337,6 +337,8 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px s
 .checks.two { grid-template-columns: 1fr 1fr; gap: 8px 10px; margin-top: 4px; font-size: 13px; }
 .checks.two .check { align-items: flex-start; line-height: 1.25; }
 .checks.two .check input { margin-top: 1px; flex: none; }
+.check.off { opacity: 0.45; }
+#finish .chip:disabled { opacity: 0.45; cursor: default; }
 #finish { margin-top: 10px; }
 .thumb {
   width: 112px; height: 72px; object-fit: contain; border: 1px solid var(--line); border-radius: calc(8px * var(--round));
@@ -611,6 +613,7 @@ body { margin: 0; }
       <div class="checks two">
         <label class="check"><input type="checkbox" id="clearBg"> Remove white background</label>
         <label class="check" title="For one-color artwork: print the whole design in a single ink color"><input type="checkbox" id="inkOn"> One color print</label>
+        <label class="check" title="A frosted white, lightly see-through mark, like an etched or sandblasted decoration"><input type="checkbox" id="etchOn"> Satin etch</label>
       </div>
       <div class="tint-row" id="inkRow" style="margin-top:8px" hidden>
         <input type="color" id="inkCol" value="#1b1f23" aria-label="Ink color">
@@ -744,7 +747,7 @@ body { margin: 0; }
   /* ---------- State ---------- */
   var reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   var S = { glass: 'highball', tint: '#ffffff', frosted: false, mode: 'drink',
-            fw: 0.6, fh: 0.3, cx: 0, cv: 0.5, lock: true, opacity: 1, two: false, repX: false, repY: false, gx: 0, gy: 0, inkOn: false, inkCol: '#1b1f23', finish: 'matte', spin: !reduceMotion, clearBg: false, guides: true };
+            fw: 0.6, fh: 0.3, cx: 0, cv: 0.5, lock: true, opacity: 1, two: false, repX: false, repY: false, gx: 0, gy: 0, inkOn: false, inkCol: '#1b1f23', etch: false, finish: 'matte', spin: !reduceMotion, clearBg: false, guides: true };
   var HQ = false;                       /* high quality rendering on? */
   var G = null, P = null, band = null, art = null;   /* band: the glass's decor area. art: the artwork's rectangle inside it. */
   var srcCanvas = null, srcW = 1, srcH = 1, tex = null;
@@ -1118,20 +1121,20 @@ body { margin: 0; }
      srcCanvas, tex, band and S.fw/fh/cx/cv/lock/clearBg are the working copy of side `cur`; stash() and load() swap them. */
   var SIDES = [0, 1].map(function () {
     return { mats: [decalMat(THREE.BackSide), decalMat(THREE.FrontSide)], src: null, w: 1, h: 1, tex: null, band: null,
-             fw: 0.6, fh: 0.3, cx: 0, cv: 0.5, lock: true, clearBg: false, repX: false, repY: false, gx: 0, gy: 0, inkOn: false, inkCol: '#1b1f23', turns: 0, mirror: 0, name: '', note: '', noteCls: 'note', sample: '' };
+             fw: 0.6, fh: 0.3, cx: 0, cv: 0.5, lock: true, clearBg: false, repX: false, repY: false, gx: 0, gy: 0, inkOn: false, inkCol: '#1b1f23', etch: false, turns: 0, mirror: 0, name: '', note: '', noteCls: 'note', sample: '' };
   }), cur = 0;
   var decalMats = SIDES[0].mats.concat(SIDES[1].mats);
   function stash() {
     var d = SIDES[cur];
     d.src = srcCanvas; d.w = srcW; d.h = srcH; d.tex = tex; d.band = band;
     d.fw = S.fw; d.fh = S.fh; d.cx = S.cx; d.cv = S.cv; d.lock = S.lock; d.clearBg = S.clearBg;
-    d.repX = S.repX; d.repY = S.repY; d.gx = S.gx; d.gy = S.gy; d.inkOn = S.inkOn; d.inkCol = S.inkCol;
+    d.repX = S.repX; d.repY = S.repY; d.gx = S.gx; d.gy = S.gy; d.inkOn = S.inkOn; d.inkCol = S.inkCol; d.etch = S.etch;
   }
   function load(i, quiet) {
     cur = i; var d = SIDES[i];
     srcCanvas = d.src; srcW = d.w; srcH = d.h; tex = d.tex; band = d.band; art = null;
     S.fw = d.fw; S.fh = d.fh; S.cx = d.cx; S.cv = d.cv; S.lock = d.lock; S.clearBg = d.clearBg;
-    S.repX = d.repX; S.repY = d.repY; S.gx = d.gx; S.gy = d.gy; S.inkOn = d.inkOn; S.inkCol = d.inkCol;
+    S.repX = d.repX; S.repY = d.repY; S.gx = d.gx; S.gy = d.gy; S.inkOn = d.inkOn; S.inkCol = d.inkCol; S.etch = !!d.etch;
     if (quiet) return;
     $('artName').textContent = d.name; $('artCur').textContent = d.name; $('artNote').textContent = d.note; $('artNote').className = d.noteCls;
     $('clearBg').checked = d.clearBg; setLock(d.lock); syncInk();
@@ -1150,7 +1153,7 @@ body { margin: 0; }
     two = !!two; stash();
     if (two && !SIDES[1].src && SIDES[0].src) {        /* first time: the back starts as a copy of the front */
       var a = SIDES[0], b = SIDES[1];
-      ['src', 'w', 'h', 'fw', 'fh', 'cv', 'lock', 'clearBg', 'turns', 'mirror', 'repX', 'repY', 'gx', 'gy', 'inkOn', 'inkCol', 'name', 'note', 'noteCls', 'sample'].forEach(function (k) { b[k] = a[k]; });
+      ['src', 'w', 'h', 'fw', 'fh', 'cv', 'lock', 'clearBg', 'turns', 'mirror', 'repX', 'repY', 'gx', 'gy', 'inkOn', 'inkCol', 'etch', 'name', 'note', 'noteCls', 'sample'].forEach(function (k) { b[k] = a[k]; });
       b.cx = 0; load(1, true); applyProcessing(); stash();
     }
     S.two = two; load(0, true);
@@ -1177,7 +1180,9 @@ body { margin: 0; }
     });
     var f = FINISH[S.finish];
     decalMats.forEach(function (m) {
-      m.roughness = f.r; m.metalness = f.m; m.envMapIntensity = f.e; m.opacity = S.opacity;
+      var e = m.userData.etch;              /* etched glass scatters light: fully rough, little reflection, no raised edge */
+      m.roughness = e ? 1 : f.r; m.metalness = f.m; m.envMapIntensity = e ? 0.35 : f.e; m.opacity = S.opacity;
+      if (m.userData.uInk) m.userData.uInk.value.x = e ? 0 : 1;
     });
   }
 
@@ -1888,20 +1893,41 @@ body { margin: 0; }
     x.putImageData(im, 0, 0);
     return c;
   }
+  var ETCH = { col: '#f4f6f7', alpha: 0.6 };     /* satin etch: frosted white, about 60% covering */
+  function etchMark(src) {                  /* the design's shape in etch white, lighter where the artwork is partly see-through */
+    var c = cv(src.width, src.height), x = c.getContext('2d'); x.drawImage(src, 0, 0);
+    var im = x.getImageData(0, 0, c.width, c.height), d = im.data, k = new THREE.Color(ETCH.col);
+    var r = Math.round(k.r * 255), g = Math.round(k.g * 255), b = Math.round(k.b * 255);
+    /* Which parts get etched: with a see-through background, the shape of the artwork; with a solid background
+       (a logo on white, say), the dark parts, so the white around it stays clear glass. */
+    var clear = 0; for (var j = 3; j < d.length; j += 4) if (d[j] < 128) clear++;
+    var byShape = clear > d.length / 4 * 0.02;
+    for (var i = 0; i < d.length; i += 4) {
+      var a = d[i + 3] / 255;
+      if (!byShape) a *= 1 - (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) / 255;
+      d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = Math.round(255 * Math.min(1, a * 1.15) * ETCH.alpha);
+    }
+    x.putImageData(im, 0, 0);
+    return c;
+  }
   function syncInk() {
-    $('inkOn').checked = S.inkOn; $('inkRow').hidden = !S.inkOn;
+    $('etchOn').checked = S.etch; $('inkOn').disabled = S.etch;
+    $('inkOn').closest('.check').classList.toggle('off', S.etch);
+    document.querySelectorAll('#finish .chip').forEach(function (b) { b.disabled = S.etch; });
+    $('inkOn').checked = S.inkOn; $('inkRow').hidden = !S.inkOn || S.etch;
     $('inkCol').value = S.inkCol; $('inkHex').value = S.inkCol.toUpperCase(); $('inkHex').removeAttribute('aria-invalid');
   }
   function applyProcessing() {
     if (!srcCanvas) return;
     var c = S.clearBg ? removeWhite(srcCanvas) : srcCanvas;
-    if (S.inkOn) c = oneInk(c, S.inkCol);
+    if (S.etch) c = etchMark(c); else if (S.inkOn) c = oneInk(c, S.inkCol);
+    SIDES[cur].mats.forEach(function (m) { m.userData.etch = S.etch; });
     if (tex) tex.dispose();
     tex = new THREE.CanvasTexture(c);
     tex.encoding = THREE.sRGBEncoding; tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
     tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
     SIDES[cur].mats.forEach(function (m) { m.map = tex; m.needsUpdate = true; });
-    drawThumb(c); updatePlacement();
+    drawThumb(c); updatePlacement(); applyLook();
   }
   function setSource(canvasEl, name, note, warn) {
     srcCanvas = canvasEl; srcW = canvasEl.width; srcH = canvasEl.height;
@@ -2023,6 +2049,7 @@ body { margin: 0; }
   $('gapX').addEventListener('input', function () { remember('gx'); S.gx = parseFloat(this.value) / 10; updatePlacement(); });
   $('gapY').addEventListener('input', function () { remember('gy'); S.gy = parseFloat(this.value) / 10; updatePlacement(); });
   $('inkOn').addEventListener('change', function (e) { S.inkOn = e.target.checked; syncInk(); applyProcessing(); });
+  $('etchOn').addEventListener('change', function (e) { S.etch = e.target.checked; syncInk(); applyProcessing(); });
   pairHex($('inkCol'), $('inkHex'), function (hex) { S.inkCol = hex; if (S.inkOn) applyProcessing(); });
   $('rotArt').addEventListener('click', function () { reshape(true); });
   $('flipArt').addEventListener('click', function () { reshape(false); });
@@ -2163,7 +2190,7 @@ body { margin: 0; }
       if ((i && !S.two) || !o.src) return;
       var c = o.src; if (!c.toDataURL) { c = cv(o.w, o.h); c.getContext('2d').drawImage(o.src, 0, 0, o.w, o.h); }
       d.sides[i] = { name: o.name, note: o.note, sample: !o.turns && !o.mirror ? o.sample : '', image: hasAlpha(c) ? c.toDataURL('image/png') : c.toDataURL('image/jpeg', 0.92),
-                     remove_white: o.clearBg, one_ink: o.inkOn ? o.inkCol : null, lock: o.lock,
+                     remove_white: o.clearBg, one_ink: o.inkOn ? o.inkCol : null, satin_etch: !!o.etch, lock: o.lock,
                      width: o.fw, height: o.fh, across: o.cx, up: o.cv, repeat: o.repX, rows: o.repY, gap: o.gx, row_gap: o.gy };
     });
     download(new Blob([JSON.stringify(d)], { type: 'application/json' }), 'glass-' + G.id + '-design.glass');
@@ -2200,7 +2227,7 @@ body { margin: 0; }
         var o = sides[i]; if (!c || (i && !S.two)) return;
         switchSide(i);
         var n = function (v, def) { v = parseFloat(v); return isFinite(v) ? v : def; };
-        S.clearBg = !!o.remove_white; S.inkOn = /^#[0-9a-f]{6}$/i.test(o.one_ink || ''); if (S.inkOn) S.inkCol = o.one_ink.toLowerCase();
+        S.clearBg = !!o.remove_white; S.inkOn = /^#[0-9a-f]{6}$/i.test(o.one_ink || ''); if (S.inkOn) S.inkCol = o.one_ink.toLowerCase(); S.etch = !!o.satin_etch;
         setSource(c, o.name || fileName, o.note || '', false);
         if (o.sample && SAMPLES[o.sample]) SIDES[cur].sample = o.sample;
         S.fw = n(o.width, 0.6); S.fh = n(o.height, 0.3); S.cx = n(o.across, 0); S.cv = n(o.up, 0.5); setLock(o.lock !== false);
@@ -2357,7 +2384,7 @@ body { margin: 0; }
     search: '#glassSearch@placeholder', glass_tint: 'label[for="tint"]', clear_glass: '#tintReset', frosted: '^#frosted', fill_level: 'label[for="level"]',
     upload: '#uploadBtn', print_help: '#printHelp', color_note: '#colorNote', print_label: '#printMode .lbl', full_wrap: '#printMode [data-two="0"]', two_sides: '#printMode [data-two="1"]',
     editing: '#sideTabs .lbl', front: '#sideTabs [data-side="0"]', back: '#sideTabs [data-side="1"]',
-    remove_white: '^#clearBg', one_color: '^#inkOn', matte: '#finish [data-finish="matte"]', gloss: '#finish [data-finish="gloss"]', place_tip: '#stp3 .tip span', disclaimer: '#colorBtn .lbl',
+    remove_white: '^#clearBg', one_color: '^#inkOn', satin_etch: '^#etchOn', matte: '#finish [data-finish="matte"]', gloss: '#finish [data-finish="gloss"]', place_tip: '#stp3 .tip span', disclaimer: '#colorBtn .lbl',
     adjust: '#editArt .lbl', upload_view: '#uploadBtn2 .lbl', save_view: '#saveBtn2 .lbl',
     view_front: '#viewPop [data-view="front"]', view_back: '#viewPop [data-view="back"]', view_top: '#viewPop [data-view="top"]',
     fit: '#fitArea .lbl', fill: '#fillArea .lbl', center: '#centerArt .lbl', repeat: '#repX .lbl', done: '#doneArt .lbl'
