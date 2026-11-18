@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="2026-11-12">
-<!-- Version 11-16 (16 November 2026) -->
+<meta name="version" content="2026-11-18">
+<!-- Version 11-18 (18 November 2026) -->
 <title>Glass Catalogue</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -100,6 +100,15 @@ input[aria-invalid="true"] { border-color: #b3261e; box-shadow: 0 0 0 1px #b3261
 .scard .pic { width: 132px; height: 74px; border-radius: 9px; border: 1px solid var(--line); object-fit: contain; display: block;
   background: repeating-conic-gradient(var(--field) 0% 25%, var(--chip) 0% 50%) 50% / 14px 14px; }
 .scard canvas.pic { object-fit: cover; }
+.scard.env { grid-template-columns: 240px minmax(0, 1fr) auto; }
+.panowrap { display: grid; gap: 6px; }
+.pano { width: 240px; height: 120px; border-radius: 9px; border: 1px solid var(--line); display: block; cursor: zoom-in;
+  background: repeating-conic-gradient(var(--field) 0% 25%, var(--chip) 0% 50%) 50% / 14px 14px; }
+.pano.empty { cursor: default; }
+.panostate { font-size: 11px; line-height: 1.35; }
+.panobox { position: fixed; inset: 0; z-index: 50; background: rgba(10, 12, 14, 0.82); display: grid; place-content: center; gap: 10px; padding: 24px; cursor: zoom-out; }
+.panobox canvas { width: min(92vw, 1024px); height: auto; aspect-ratio: 2 / 1; border-radius: 10px; }
+.panobox .meta { color: #e6e8ea; text-align: center; }
 #sgThumb .thumb { width: 132px; height: 186px; }
 #simplePanel .rowact { gap: 8px; }
 #simplePanel .seg { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 430px; }
@@ -141,6 +150,9 @@ input[aria-invalid="true"] { border-color: #b3261e; box-shadow: 0 0 0 1px #b3261
 .mk-chips span { padding: 3px 9px; border-radius: 999px; border: 1px solid var(--m-line); background: var(--m-chip); }
 .mk-btns span { padding: 6px 11px; border-radius: calc(9px * var(--m-round)); border: 1px solid var(--m-line); background: var(--m-field); }
 .list { display: grid; gap: 10px; }
+.bgopts { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 10px; }
+.bgopts .meta { grid-column: 1 / -1; }
+.bgopts input[type="range"] { width: 100%; }
 .card {
   display: grid; grid-template-columns: 96px minmax(0, 1fr) auto; gap: 14px; align-items: start;
   background: var(--panel); border: 1px solid var(--frame-line); border-radius: 14px; padding: 12px;
@@ -179,6 +191,8 @@ body.dropping .wrap { outline: 3px dashed var(--accent); outline-offset: 8px; bo
   .wrow { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .scard { grid-template-columns: 96px minmax(0, 1fr); }
   .scard .pic { width: 96px; height: 54px; }
+  .scard.env { grid-template-columns: minmax(0, 1fr); }
+  .pano { width: 100%; height: auto; aspect-ratio: 2 / 1; }
   .scard .rowact { grid-column: 1 / -1; grid-auto-flow: column; justify-content: end; }
   .f.s4, .f.s6 { grid-column: 1 / -1; } .f.s3, .f.s2 { grid-column: span 6; }
   .card { grid-template-columns: 72px minmax(0, 1fr); }
@@ -294,6 +308,15 @@ body { margin: 0; }
       </div>
     </div>
     <div class="list" id="envList"></div>
+    <div class="intro">
+      <p>The shadow under the glass. It follows the glass's real shape: a ring under a stemmed glass's foot, a disc under a tumbler, darkest where the glass touches the floor.</p>
+      <div class="fields">
+        <label class="f s4"><span>Darkness: <output id="shDarkOut"></output></span><input type="range" id="shDark" min="0" max="1" step="0.05"></label>
+        <label class="f s4"><span>Softness: <output id="shSoftOut"></output></span><input type="range" id="shSoft" min="0" max="1" step="0.05"></label>
+        <label class="f s4"><span>Reach up the glass: <output id="shReachOut"></output></span><input type="range" id="shReach" min="0" max="1" step="0.05"></label>
+        <div class="meta">Reach is how much of the glass casts shadow: low keeps it to the base, high lets the bowl of a stemmed glass add a faint wider shadow. <button class="linkbtn" id="shReset" type="button">Back to the defaults</button></div>
+      </div>
+    </div>
     <div class="intro">
       <p>The background color the visualiser opens with. Customers can still change it for themselves with the background button on the 3D view; its Reset returns to this color.</p>
       <div class="row">
@@ -434,7 +457,7 @@ body { margin: 0; }
   var builtInByKey = {}; BUILTIN.forEach(function (b) { builtInByKey[b.key] = b; });
   var allBuiltIn = function () { return BUILTIN.map(function (b, i) { return { builtin: b.key, default: i === 0 }; }); };
   var BG0 = '#b2b6ba';
-  var settings = { theme: {}, text: {}, artwork: allBuiltIn(), background: BG0, lighting: { active: -1, also_standard: false, list: [] } };
+  var settings = { theme: {}, text: {}, shadow: { darkness: 0.5, softness: 0.5, reach: 0.5 }, artwork: allBuiltIn(), background: BG0, lighting: { active: -1, also_standard: false, list: [] } };
   function readSettings(st) {
     if (!st || typeof st !== 'object') return false;
     var L = st.lighting || {};
@@ -448,8 +471,12 @@ body { margin: 0; }
       }),
       lighting: { active: num(L.active) == null ? -1 : num(L.active), also_standard: !!L.also_standard,
         list: (L.list || []).filter(function (e) { return e && e.file; }).map(function (e) {
-          var b = num(e.brightness), r = num(e.rotation); return { name: String(e.name || ''), file: String(e.file), brightness: b == null ? 1 : b, rotation: r == null ? 0 : r };
-        }) }
+          var b = num(e.brightness), r = num(e.rotation), bl = num(e.blur), fl = num(e.floor), bb = num(e.bg_brightness);
+          return { name: String(e.name || ''), file: String(e.file), brightness: b == null ? 1 : b, rotation: r == null ? 0 : r,
+                   background: !!e.background, blur: bl == null ? 0.3 : bl, floor: fl == null ? 30 : fl, bg_brightness: bb == null ? 1 : bb };
+        }) },
+      shadow: (function (sh) { sh = sh || {}; var f = function (v) { v = num(v); return v == null ? 0.5 : Math.min(Math.max(v, 0), 1); };
+        return { darkness: f(sh.darkness), softness: f(sh.softness), reach: f(sh.reach) }; })(st.shadow)
     };
     if (!settings.lighting.list[settings.lighting.active]) settings.lighting.active = -1;
     /* older files: the built-in samples were shown after your own unless switched off */
@@ -469,7 +496,12 @@ body { margin: 0; }
       artwork: settings.artwork.map(function (a) { return a.builtin ? { builtin: a.builtin, default: a.default } : { name: a.name.trim(), image: a.image, width: a.width, default: a.default }; }),
       builtin_samples: false,      /* the built-in samples to show are listed in artwork, so none are added automatically */
       lighting: { active: L.active, also_standard: L.also_standard,
-        list: L.list.map(function (e) { return { name: e.name.trim(), file: e.file.trim(), brightness: e.brightness, rotation: e.rotation }; }) }
+        list: L.list.map(function (e) {
+          var o = { name: e.name.trim(), file: e.file.trim(), brightness: e.brightness, rotation: e.rotation };
+          if (e.background) { o.background = true; o.blur = e.blur; o.floor = e.floor; o.bg_brightness = e.bg_brightness; }
+          return o;
+        }) },
+      shadow: { darkness: settings.shadow.darkness, softness: settings.shadow.softness, reach: settings.shadow.reach }
     };
   }
   var kb = function (dataUrl) { return Math.round(dataUrl.length * 0.75 / 1024); };
@@ -535,16 +567,18 @@ body { margin: 0; }
   });
 
   /* ----- Lighting page ----- */
-  var envPreview = {};                    /* file path -> small preview canvas, for files picked in this visit */
-  function hdrPreview(buf) {              /* a small tone-mapped picture of a Radiance .hdr */
+  /* Lighting previews. Each panorama is kept as small linear pixels (512 × 256), so the card can show it with the
+     brightness, turn and softness you set. Files already on the website are fetched from their path, which also tells
+     you whether the upload worked. */
+  var PW = 512, PH = 256, envPix = {}, envDraw = {};   /* path -> {lin, w, h, size} | {missing} | {loading} ; path -> redraw */
+  function hdrPixels(buf) {
     var d = new Uint8Array(buf), pos = 0;
-    function line() { var t = ''; while (pos < d.length) { var c = d[pos++]; if (c === 10) break; t += String.fromCharCode(c); } return t; }
+    function line() { var t = ''; while (pos < d.length) { var ch = d[pos++]; if (ch === 10) break; t += String.fromCharCode(ch); } return t; }
     if (!/^#\?(RADIANCE|RGBE)/.test(line())) throw new Error('not a Radiance .hdr file');
     var l; while ((l = line()) !== '' && pos < d.length) {}
     var m = /^-Y (\d+) \+X (\d+)/.exec(line()); if (!m) throw new Error('unsupported .hdr orientation');
-    var h = +m[1], w = +m[2], cw = 264, ch = 148, c = document.createElement('canvas'); c.width = cw; c.height = ch;
-    var x = c.getContext('2d'), im = x.createImageData(cw, ch), scan = new Uint8Array(w * 4), rowOf = [];
-    for (var cy = 0; cy < ch; cy++) rowOf[Math.floor(cy * h / ch)] = cy;
+    var h = +m[1], w = +m[2], lin = new Float32Array(PW * PH * 3), scan = new Uint8Array(w * 4), rowOf = {};
+    for (var py = 0; py < PH; py++) rowOf[Math.floor((py + 0.5) * h / PH)] = py;
     for (var y = 0; y < h; y++) {
       if (w >= 8 && w < 32768 && d[pos] === 2 && d[pos + 1] === 2 && !(d[pos + 2] & 128)) {
         pos += 4;
@@ -554,35 +588,96 @@ body { margin: 0; }
         }
       } else { scan.set(d.subarray(pos, pos + w * 4)); pos += w * 4; }
       var ty = rowOf[y]; if (ty == null) continue;
-      for (var tx = 0; tx < cw; tx++) {
-        var sx = Math.floor(tx * w / cw) * 4, e = scan[sx + 3], f = e ? Math.pow(2, e - 136) : 0, o = (ty * cw + tx) * 4;
-        for (var q = 0; q < 3; q++) { var lin = scan[sx + q] * f; lin = lin / (1 + lin); im.data[o + q] = Math.round(255 * Math.pow(lin, 1 / 2.2)); }
-        im.data[o + 3] = 255;
+      for (var tx = 0; tx < PW; tx++) {
+        var sx = Math.floor((tx + 0.5) * w / PW) * 4, e = scan[sx + 3], f = e ? Math.pow(2, e - 136) : 0, o = (ty * PW + tx) * 3;
+        lin[o] = scan[sx] * f; lin[o + 1] = scan[sx + 1] * f; lin[o + 2] = scan[sx + 2] * f;
       }
     }
-    x.putImageData(im, 0, 0);
-    return { canvas: c, w: w, h: h };
+    return { lin: lin, w: w, h: h };
+  }
+  function imagePixels(img) {
+    var cv = document.createElement('canvas'); cv.width = PW; cv.height = PH;
+    var x = cv.getContext('2d'); x.drawImage(img, 0, 0, PW, PH);
+    var px = x.getImageData(0, 0, PW, PH).data, lin = new Float32Array(PW * PH * 3), lut = [];
+    for (var i = 0; i < 256; i++) { var s = i / 255; lut[i] = s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4); }
+    for (var p = 0, q = 0; p < px.length; p += 4, q += 3) { lin[q] = lut[px[p]]; lin[q + 1] = lut[px[p + 1]]; lin[q + 2] = lut[px[p + 2]]; }
+    return { lin: lin, w: img.naturalWidth, h: img.naturalHeight };
+  }
+  /* Draw the panorama the way the visualiser will use it: turned, brightened, and (as a background) softened,
+     with the horizon marked when its lower half becomes the floor. */
+  function drawPano(cv, e) {
+    var P = envPix[e.file], x = cv.getContext('2d'), W = cv.width, H = cv.height;
+    x.clearRect(0, 0, W, H);
+    if (!P || !P.lin) return false;
+    var im = new ImageData(PW, PH), gain = (e.brightness > 0 ? e.brightness : 1) * (e.background && e.bg_brightness > 0 ? e.bg_brightness : 1);
+    var shift = Math.round((((e.rotation || 0) % 360) + 360) % 360 / 360 * PW);
+    for (var y = 0; y < PH; y++) for (var x2 = 0; x2 < PW; x2++) {
+      var s = (y * PW + ((x2 - shift + PW) % PW)) * 3, o = (y * PW + x2) * 4;
+      for (var k = 0; k < 3; k++) { var v = P.lin[s + k] * gain; v = v / (1 + 0.22 * v) * 1.22; im.data[o + k] = Math.round(255 * Math.pow(Math.min(v, 1), 1 / 2.2)); }
+      im.data[o + 3] = 255;
+    }
+    var tmp = document.createElement('canvas'); tmp.width = PW; tmp.height = PH; tmp.getContext('2d').putImageData(im, 0, 0);
+    var soft = e.background ? (+e.blur || 0) : 0;
+    if (soft > 0) {                          /* blur three copies side by side, keep the middle one, so the blur wraps round */
+      var wide = document.createElement('canvas'); wide.width = W * 3; wide.height = H;
+      var wx = wide.getContext('2d'); wx.filter = 'blur(' + (soft * 10 * W / PW).toFixed(1) + 'px)';
+      for (var t = 0; t < 3; t++) wx.drawImage(tmp, t * W, 0, W, H);
+      x.drawImage(wide, W, 0, W, H, 0, 0, W, H);
+    } else x.drawImage(tmp, 0, 0, W, H);
+    if (e.background) {                      /* where the room ends and the floor begins */
+      x.strokeStyle = 'rgba(255,255,255,0.85)'; x.setLineDash([6, 5]); x.lineWidth = Math.max(1, W / 260);
+      x.beginPath(); x.moveTo(0, H / 2); x.lineTo(W, H / 2); x.stroke(); x.setLineDash([]);
+      x.font = '600 ' + Math.round(W / 26) + 'px system-ui, sans-serif'; x.fillStyle = 'rgba(255,255,255,0.95)'; x.shadowColor = 'rgba(0,0,0,0.6)'; x.shadowBlur = 4;
+      x.fillText('Room', W / 60, H / 2 - W / 60); x.fillText('Floor', W / 60, H / 2 + W / 26 + W / 80); x.shadowBlur = 0;
+    }
+    return true;
+  }
+  function fetchPano(path) {                /* look for a lighting file on the website, next to this page */
+    if (envPix[path]) return;
+    envPix[path] = { loading: true };
+    var done = function (p) { envPix[path] = p; (envDraw[path] || function () {})(); };
+    fetch(path, { cache: 'no-cache' }).then(function (r) {
+      if (!r.ok) throw new Error(r.status);
+      if (/\.hdr$/i.test(path)) return r.arrayBuffer().then(function (buf) { var p = hdrPixels(buf); p.size = buf.byteLength; done(p); });
+      return r.blob().then(function (bl) {
+        return new Promise(function (ok, no) {
+          var url = URL.createObjectURL(bl), img = new Image();
+          img.onload = function () { var p = imagePixels(img); p.size = bl.size; URL.revokeObjectURL(url); done(p); ok(); };
+          img.onerror = function () { URL.revokeObjectURL(url); no(new Error('unreadable')); };
+          img.src = url;
+        });
+      });
+    }).catch(function () { done({ missing: true }); });
+  }
+  /* a bigger look on click */
+  function showBigPano(e) {
+    var box = el('div', 'panobox'), cv = document.createElement('canvas'); cv.width = 1024; cv.height = 512;
+    drawPano(cv, e);
+    box.appendChild(cv); box.appendChild(el('div', 'meta', (e.name || e.file) + ' · as the visualiser uses it, with your brightness and turn' + (e.background ? ', softness and the floor line' : '') + '. Click anywhere to close.'));
+    var close = function () { box.remove(); removeEventListener('keydown', esc); }, esc = function (k) { if (k.key === 'Escape') close(); };
+    box.addEventListener('click', close); addEventListener('keydown', esc);
+    document.body.appendChild(box);
   }
   function addEnvFiles(files) {
     var left = files.length; if (!left) return;
     Array.prototype.forEach.call(files, function (file) {
-      var path = 'lighting/' + file.name, done = function (pv, info) {
-        if (pv) envPreview[path] = pv;
+      var path = 'lighting/' + file.name, done = function (p, info) {
+        if (p) { p.size = file.size; p.local = true; envPix[path] = p; }
         var L = settings.lighting, i = -1; L.list.forEach(function (e, k) { if (e.file === path) i = k; });
-        if (i < 0) { L.list.push({ name: file.name.replace(/\.[^.]+$/, ''), file: path, brightness: 1, rotation: 0 }); i = L.list.length - 1; }
+        if (i < 0) { L.list.push({ name: file.name.replace(/\.[^.]+$/, ''), file: path, brightness: 1, rotation: 0, background: false, blur: 0.3, floor: 30, bg_brightness: 1 }); i = L.list.length - 1; }
         L.active = i; dirty = true;
         note = file.name + (info ? ' (' + info + ')' : '') + ' added. Upload it to the website as ' + path + '.';
         if (!--left) renderEnv();
       };
       if (/\.hdr$/i.test(file.name)) {
         var rd = new FileReader();
-        rd.onload = function () { try { var p = hdrPreview(rd.result); done(p.canvas, p.w + ' × ' + p.h + ', ' + (file.size / 1048576).toFixed(1) + ' MB'); } catch (e) { note = file.name + ' could not be used: ' + e.message + '.'; if (!--left) renderEnv(); } };
+        rd.onload = function () { try { var p = hdrPixels(rd.result); done(p, p.w + ' × ' + p.h + ', ' + (file.size / 1048576).toFixed(1) + ' MB'); } catch (e) { note = file.name + ' could not be used: ' + e.message + '.'; if (!--left) renderEnv(); } };
         rd.readAsArrayBuffer(file);
       } else if (/^image\/(jpeg|png)$/.test(file.type)) {
         var url = URL.createObjectURL(file), img = new Image();
         img.onload = function () {
-          var c = document.createElement('canvas'); c.width = 264; c.height = 148; c.getContext('2d').drawImage(img, 0, 0, 264, 148); URL.revokeObjectURL(url);
-          done(c, img.naturalWidth + ' × ' + img.naturalHeight);
+          var p = imagePixels(img); URL.revokeObjectURL(url);
+          done(p, img.naturalWidth + ' × ' + img.naturalHeight);
         };
         img.onerror = function () { URL.revokeObjectURL(url); note = file.name + ' could not be read.'; if (!--left) renderEnv(); };
         img.src = url;
@@ -592,26 +687,55 @@ body { margin: 0; }
   function renderEnv() {
     var list = $('envList'), L = settings.lighting; list.textContent = '';
     L.list.forEach(function (e, i) {
-      var c = el('article', 'scard' + (L.active === i ? ' on' : '')), f = el('div', 'fields'), act = el('div', 'rowact'), pv = envPreview[e.file], pic;
-      if (pv) { pic = pv; pic.className = 'pic'; } else { pic = el('div', 'pic nopic', 'Preview appears for files added in this visit'); }
+      var c = el('article', 'scard env' + (L.active === i ? ' on' : '')), f = el('div', 'fields'), act = el('div', 'rowact');
+      var pic = el('div', 'panowrap'), cv = document.createElement('canvas'), say = el('div', 'meta panostate');
+      cv.width = 480; cv.height = 240; cv.className = 'pano'; cv.title = 'Click for a bigger look';
+      cv.addEventListener('click', function () { if (envPix[e.file] && envPix[e.file].lin) showBigPano(e); });
+      pic.appendChild(cv); pic.appendChild(say);
+      var redraw = function () {
+        var P = envPix[e.file];
+        if (!P) { fetchPano(e.file.trim()); P = envPix[e.file]; }
+        var shown = drawPano(cv, e);
+        cv.classList.toggle('empty', !shown);
+        say.textContent = !P || P.loading ? 'Looking for ' + e.file + ' on the website…'
+          : P.missing ? 'Not found on the website at ' + e.file + '. Upload it there, or add the file here to preview it.'
+          : (P.local ? 'Added in this visit' : 'Found on the website') + ' · ' + P.w + ' × ' + P.h + (P.size ? ', ' + (P.size >= 1048576 ? (P.size / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(P.size / 1024)) + ' KB') : '');
+      };
+      envDraw[e.file] = redraw;
       var name = input('text', e.name, { autocomplete: 'off' }), file = input('text', e.file, { autocomplete: 'off', spellcheck: 'false' });
       var br = input('number', e.brightness, { min: 0.1, max: 5, step: 0.1, inputmode: 'decimal' }), ro = input('number', e.rotation, { min: -360, max: 360, step: 5, inputmode: 'decimal' });
       name.addEventListener('input', function () { e.name = name.value; touched(); });
-      file.addEventListener('input', function () { e.file = file.value; file.setAttribute('aria-invalid', e.file.trim() ? 'false' : 'true'); touched(); });
-      br.addEventListener('input', function () { var v = num(br.value); e.brightness = v == null || v <= 0 ? 1 : v; touched(); });
-      ro.addEventListener('input', function () { var v = num(ro.value); e.rotation = v == null ? 0 : v; touched(); });
+      file.addEventListener('input', function () { delete envDraw[e.file]; e.file = file.value; envDraw[e.file] = redraw; file.setAttribute('aria-invalid', e.file.trim() ? 'false' : 'true'); touched(); clearTimeout(file._t); file._t = setTimeout(redraw, 600); });
+      br.addEventListener('input', function () { var v = num(br.value); e.brightness = v == null || v <= 0 ? 1 : v; touched(); redraw(); });
+      ro.addEventListener('input', function () { var v = num(ro.value); e.rotation = v == null ? 0 : v; touched(); redraw(); });
       var pick = el('label', 'f pickrow check'), rd = input('radio', '', { name: 'envActive' }); rd.checked = L.active === i;
       rd.addEventListener('change', function () { L.active = i; touched(); renderEnv(); });
       pick.appendChild(rd); pick.appendChild(document.createTextNode('Use this lighting'));
       f.appendChild(field('s4', 'Name', name)); f.appendChild(field('s4', 'File on the website', file));
       f.appendChild(field('s2', 'Brightness ×', br)); f.appendChild(field('s2', 'Turn, degrees', ro));
       f.appendChild(pick);
+      /* the panorama as the 3D view background */
+      var bgl = el('label', 'f pickrow check'), bgc = input('checkbox', '', {}); bgc.checked = !!e.background;
+      bgl.appendChild(bgc); bgl.appendChild(document.createTextNode('Show it as the 3D view background'));
+      f.appendChild(bgl);
+      var bgo = el('div', 'bgopts'); bgo.hidden = !e.background;
+      var bl = input('range', e.blur, { min: 0, max: 1, step: 0.05 }), fl = input('number', e.floor, { min: 2, max: 170, step: 1, inputmode: 'decimal' }),
+          bb = input('number', e.bg_brightness, { min: 0.1, max: 5, step: 0.1, inputmode: 'decimal' });
+      bl.value = e.blur;                  /* set after min, max and step, or the browser rounds it */
+      bl.addEventListener('input', function () { e.blur = +bl.value; touched(); redraw(); });
+      fl.addEventListener('input', function () { var v = num(fl.value); e.floor = v == null ? 30 : v; touched(); });
+      bb.addEventListener('input', function () { var v = num(bb.value); e.bg_brightness = v == null || v <= 0 ? 1 : v; touched(); redraw(); });
+      bgo.appendChild(field('s4', 'Softness (sharp to blurred)', bl)); bgo.appendChild(field('s4', 'Camera height above the floor, cm', fl)); bgo.appendChild(field('s4', 'Background brightness ×', bb));
+      bgo.appendChild(el('div', 'meta', 'The lower half of the panorama becomes the floor the glass stands on. If the floor looks stretched or the glass looks too big for the room, change the camera height: about where the panorama was shot from (table height for a table-top shot). A blurred background keeps the attention on the glass and hides a low-resolution file.'));
+      bgc.addEventListener('change', function () { e.background = bgc.checked; bgo.hidden = !bgc.checked; touched(); redraw(); });
+      f.appendChild(bgo);
       var b = el('button', 'icon'); b.type = 'button'; b.innerHTML = ICON.del; b.title = 'Remove'; b.setAttribute('aria-label', 'Remove: ' + e.name);
       b.addEventListener('click', function () { L.list.splice(i, 1); L.active = L.active === i ? -1 : L.active > i ? L.active - 1 : L.active; touched(); renderEnv(); });
       act.appendChild(b);
       c.appendChild(pic); c.appendChild(f); c.appendChild(act); list.appendChild(c);
+      redraw();
     });
-    $('envNone').checked = L.active < 0; $('envBoth').checked = L.also_standard;
+    $('envNone').checked = L.active < 0; $('envBoth').checked = L.also_standard; renderShadow();
     $('bgCol').value = settings.background; $('bgHex').value = settings.background.toUpperCase(); $('bgHex').removeAttribute('aria-invalid');
     counts(); status();
   }
@@ -624,6 +748,14 @@ body { margin: 0; }
     else this.setAttribute('aria-invalid', 'true');
   });
   $('bgReset').addEventListener('click', function () { settings.background = BG0; touched(); renderEnv(); });
+  function pct(v) { return Math.round(v * 100) + '%'; }
+  function renderShadow() {
+    [['shDark', 'darkness'], ['shSoft', 'softness'], ['shReach', 'reach']].forEach(function (p) { $(p[0]).value = settings.shadow[p[1]]; $(p[0] + 'Out').textContent = pct(settings.shadow[p[1]]); });
+  }
+  [['shDark', 'darkness'], ['shSoft', 'softness'], ['shReach', 'reach']].forEach(function (p) {
+    $(p[0]).addEventListener('input', function () { settings.shadow[p[1]] = +this.value; $(p[0] + 'Out').textContent = pct(+this.value); touched(); });
+  });
+  $('shReset').addEventListener('click', function () { settings.shadow = { darkness: 0.5, softness: 0.5, reach: 0.5 }; renderShadow(); touched(); });
   $('envNone').addEventListener('change', function () { settings.lighting.active = -1; touched(); renderEnv(); });
   $('envBoth').addEventListener('change', function (e) { settings.lighting.also_standard = e.target.checked; touched(); });
 

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="2026-11-17">
-<!-- Version 11-17 (17 November 2026) -->
+<meta name="version" content="2026-11-18">
+<!-- Version 11-18 (18 November 2026) -->
 <title>Glassware Visualiser</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -76,6 +76,7 @@ body {
 .stage canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; outline: none; }
 .stage canvas:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
 .hud { position: absolute; left: 16px; bottom: 14px; display: grid; gap: 2px; pointer-events: none; max-width: 60%; }
+.stage.photo .hud { --stage-fg: #1b1f23; --stage-muted: #3a4046; color: #1b1f23; background: rgba(255, 255, 255, 0.78); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); padding: 8px 12px; border-radius: calc(10px * var(--round)); }
 .spec-name { font-family: var(--font-head); font-weight: 600; font-size: 18px; letter-spacing: -0.01em; color: var(--stage-fg); }
 .spec-meta { font: 500 12px var(--font-mono); color: var(--stage-muted); }
 .overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
@@ -790,6 +791,146 @@ body { margin: 0; }
   var shadowHQ = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: shadowTex, toneMapped: false }));
   shadowHQ.rotation.x = -Math.PI / 2; shadowHQ.position.y = 0.01; shadowHQ.visible = false; scene.add(shadowHQ);
 
+  /* ---------- Ground and background ----------
+     One big dome behind everything, in both qualities. It shows the background color, or the lighting panorama with its
+     lower half laid flat as a floor the glass stands on. The contact shadow is printed onto that floor. Because the dome
+     is solid, High quality bends it through the glass, shadow included. */
+  var SH = { darkness: 0.5, softness: 0.5, reach: 0.5 };        /* ground shadow settings, 0 to 1 each */
+  var groundMat = new THREE.ShaderMaterial({
+    uniforms: {
+      col: { value: new THREE.Color(STAGE).convertSRGBToLinear() },
+      usePano: { value: 0 }, pano: { value: null }, panoGain: { value: 1 }, camH: { value: 30 }, R: { value: 180 },
+      shTex: { value: null }, shSize: { value: 1 }
+    },
+    vertexShader: 'varying vec3 vW; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
+    fragmentShader: [
+      'uniform vec3 col; uniform float usePano; uniform sampler2D pano; uniform float panoGain; uniform float camH; uniform float R;',
+      'uniform sampler2D shTex; uniform float shSize; varying vec3 vW;',
+      'void main() {',
+      '  vec3 c = cameraPosition, d = normalize(vW - c);',
+      '  float b = dot(c, d), t = -b + sqrt(max(b * b - (dot(c, c) - R * R), 0.0));',   /* where the view ray meets the dome */
+      '  vec3 hit = c + d * t; float shade = 1.0;',
+      '  if (d.y < 0.0) {',
+      '    float tg = -c.y / d.y;',
+      '    if (tg < t) {',                                                                 /* it meets the floor first */
+      '      hit = c + d * tg;',
+      '      vec2 uv = hit.xz / shSize + 0.5;',
+      '      if (shSize > 0.0 && uv.x > 0.0 && uv.y > 0.0 && uv.x < 1.0 && uv.y < 1.0) shade = 1.0 - texture2D(shTex, uv).a;',
+      '    }',
+      '  }',
+      '  vec3 rgb = col;',
+      '  if (usePano > 0.5) {',                    /* looked up from where the panorama was taken, camH above the floor */
+      '    vec3 e = normalize(hit - vec3(0.0, camH, 0.0));',
+      '    vec2 puv = vec2(atan(e.z, e.x) * 0.1591549 + 0.5, asin(clamp(e.y, -1.0, 1.0)) * 0.3183099 + 0.5);',
+      '    rgb = texture2D(pano, puv).rgb * panoGain;',
+      '    rgb = rgb / (1.0 + 0.22 * rgb) * 1.22;',  /* bright windows roll off instead of clipping hard */
+      '  }',
+      '  gl_FragColor = linearToOutputTexel(vec4(rgb * shade, 1.0));',
+      '}'
+    ].join('\n'),
+    side: THREE.BackSide, depthWrite: false
+  });
+  backdrop.material.dispose(); backdrop.material = groundMat; backdrop.visible = true;
+  backdrop.geometry.dispose(); backdrop.geometry = new THREE.SphereGeometry(180, 64, 32);
+
+  /* Contact shadow: look up at the glass from the floor, keep what is close to the floor, blur it. */
+  var SHR = 512, shRT = [0, 1].map(function () { return new THREE.WebGLRenderTarget(SHR, SHR); });
+  var shCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1); shCam.rotation.x = Math.PI / 2; shCam.position.y = -0.02; shCam.layers.set(5);
+  var shMat = new THREE.ShaderMaterial({
+    uniforms: { reach: { value: 5 }, dark: { value: 0.4 } },
+    vertexShader: 'varying float vH; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vH = w.y; gl_Position = projectionMatrix * viewMatrix * w; }',
+    fragmentShader: 'uniform float reach; uniform float dark; varying float vH; void main() { float k = 1.0 - clamp(vH / reach, 0.0, 1.0); gl_FragColor = vec4(0.0, 0.0, 0.0, dark * k * k); }',
+    transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide
+  });
+  var blurMat = new THREE.ShaderMaterial({
+    uniforms: { tex: { value: null }, dir: { value: new THREE.Vector2() } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+    fragmentShader: 'uniform sampler2D tex; uniform vec2 dir; varying vec2 vUv; void main() {' +
+      ' vec4 s = texture2D(tex, vUv) * 0.227027;' +
+      ' s += (texture2D(tex, vUv + dir * 1.384615) + texture2D(tex, vUv - dir * 1.384615)) * 0.316216;' +
+      ' s += (texture2D(tex, vUv + dir * 3.230769) + texture2D(tex, vUv - dir * 3.230769)) * 0.070270;' +
+      ' gl_FragColor = s; }',
+    depthTest: false, depthWrite: false, blending: THREE.NoBlending
+  });
+  var blurScene = new THREE.Scene(), quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1), quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), blurMat);
+  quad.frustumCulled = false; blurScene.add(quad);
+  var shSig = '', tmpCol = new THREE.Color();
+  function renderContact() {                /* only redrawn when the glass, the fill or the settings change */
+    if (!P) return;
+    var sig = SH.darkness + ',' + SH.softness + ',' + SH.reach;
+    [bodyGroup, liquidGroup].forEach(function (g) { g.traverse(function (o) { if (o.isMesh) { sig += o.geometry.uuid + (o.visible ? 1 : 0); o.layers.enable(5); } }); });
+    if (sig === shSig) return; shSig = sig;
+    var size = P.R * 2 * 2.3 + P.H * 0.35;
+    shCam.left = shCam.bottom = -size / 2; shCam.right = shCam.top = size / 2; shCam.near = 0; shCam.far = P.H + 1; shCam.updateProjectionMatrix();
+    shMat.uniforms.reach.value = Math.max(0.4, P.H * (0.08 + 0.92 * SH.reach * SH.reach));
+    shMat.uniforms.dark.value = 0.15 + 0.7 * SH.darkness;
+    var keepT = renderer.getRenderTarget(), keepA = renderer.getClearAlpha(); renderer.getClearColor(tmpCol);
+    var keepBg = scene.background, keepO = scene.overrideMaterial;
+    scene.background = null; scene.overrideMaterial = shMat;
+    renderer.setRenderTarget(shRT[0]); renderer.setClearColor(0x000000, 0); renderer.clear(); renderer.render(scene, shCam);
+    scene.overrideMaterial = keepO; scene.background = keepBg;
+    var px = (0.6 + SH.softness * 9) / SHR;
+    for (var i = 0; i < 3; i++) {
+      var a = px * [1, 0.6, 0.3][i];
+      blurMat.uniforms.tex.value = shRT[0].texture; blurMat.uniforms.dir.value.set(a, 0); renderer.setRenderTarget(shRT[1]); renderer.render(blurScene, quadCam);
+      blurMat.uniforms.tex.value = shRT[1].texture; blurMat.uniforms.dir.value.set(0, a); renderer.setRenderTarget(shRT[0]); renderer.render(blurScene, quadCam);
+    }
+    renderer.setRenderTarget(keepT); renderer.setClearColor(tmpCol, keepA);
+    groundMat.uniforms.shTex.value = shRT[0].texture; groundMat.uniforms.shSize.value = size;
+  }
+
+  /* The panorama as a picture, separate from the lighting it gives: optionally softened, so it reads as a background. */
+  var panoTex = null;
+  function panoFromPixels(p, L) {
+    var blur = Math.min(Math.max(+L.blur || 0, 0), 1), W = blur > 0 ? 1024 : Math.min(2048, p.w), H = W / 2;
+    var sx = p.w / W, sy = p.h / H, rgb = new Float32Array(W * H * 3);
+    var shift = Math.round((((L.rotation || 0) % 360) + 360) % 360 / 360 * W);
+    for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) {           /* average the source pixels under each new one */
+      var o = (y * W + ((x - shift + W) % W)) * 3, n = 0, r = 0, g = 0, b = 0;
+      for (var yy = Math.floor(y * sy); yy < Math.min(p.h, Math.floor((y + 1) * sy) || 1); yy++)
+        for (var xx = Math.floor(x * sx); xx < Math.min(p.w, Math.floor((x + 1) * sx) || 1); xx++) { var q = (yy * p.w + xx) * 3; r += p.data[q]; g += p.data[q + 1]; b += p.data[q + 2]; n++; }
+      if (!n) { var q2 = (Math.min(p.h - 1, Math.floor(y * sy)) * p.w + Math.min(p.w - 1, Math.floor(x * sx))) * 3; r = p.data[q2]; g = p.data[q2 + 1]; b = p.data[q2 + 2]; n = 1; }
+      rgb[o] = r / n; rgb[o + 1] = g / n; rgb[o + 2] = b / n;
+    }
+    var rad = Math.round(blur * 14);
+    if (rad > 0) {                        /* three box passes each way: close to a soft gaussian */
+      var tmp = new Float32Array(rgb.length);
+      for (var pass = 0; pass < 3; pass++) {
+        for (var y2 = 0; y2 < H; y2++) for (var c = 0; c < 3; c++) {          /* across, wrapping round the panorama */
+          var acc = 0; for (var k = -rad; k <= rad; k++) acc += rgb[(y2 * W + ((k + W) % W)) * 3 + c];
+          for (var x2 = 0; x2 < W; x2++) { tmp[(y2 * W + x2) * 3 + c] = acc / (2 * rad + 1); acc += rgb[(y2 * W + ((x2 + rad + 1) % W)) * 3 + c] - rgb[(y2 * W + ((x2 - rad + W) % W)) * 3 + c]; }
+        }
+        for (var x3 = 0; x3 < W; x3++) for (var c2 = 0; c2 < 3; c2++) {       /* down, stopping at the poles */
+          var acc2 = 0, cnt = 0;
+          for (var k2 = 0; k2 <= rad; k2++) { if (k2 < H) { acc2 += tmp[(k2 * W + x3) * 3 + c2]; cnt++; } }
+          for (var y3 = 0; y3 < H; y3++) {
+            rgb[(y3 * W + x3) * 3 + c2] = acc2 / cnt;
+            var add = y3 + rad + 1, drop = y3 - rad;
+            if (add < H) { acc2 += tmp[(add * W + x3) * 3 + c2]; cnt++; }
+            if (drop >= 0) { acc2 -= tmp[(drop * W + x3) * 3 + c2]; cnt--; }
+          }
+        }
+      }
+    }
+    var u16 = new Uint16Array(W * H * 4), half = THREE.DataUtils.toHalfFloat, one = half(1);
+    for (var y4 = 0; y4 < H; y4++) for (var x4 = 0; x4 < W; x4++) {
+      var s4 = (y4 * W + x4) * 3, o4 = ((H - 1 - y4) * W + x4) * 4;      /* textures start at the bottom row */
+      u16[o4] = half(Math.min(rgb[s4], 400)); u16[o4 + 1] = half(Math.min(rgb[s4 + 1], 400)); u16[o4 + 2] = half(Math.min(rgb[s4 + 2], 400)); u16[o4 + 3] = one;
+    }
+    var t = new THREE.DataTexture(u16, W, H, THREE.RGBAFormat, THREE.HalfFloatType);
+    t.wrapS = THREE.RepeatWrapping; t.minFilter = t.magFilter = THREE.LinearFilter; t.needsUpdate = true;
+    return t;
+  }
+  function usePano(t, L) {
+    if (panoTex) panoTex.dispose();
+    panoTex = t; groundMat.uniforms.pano.value = t;
+    if (L) {
+      groundMat.uniforms.panoGain.value = (L.brightness > 0 ? L.brightness : 1) * (L.bg_brightness > 0 ? L.bg_brightness : 1);
+      groundMat.uniforms.camH.value = Math.min(Math.max(+L.floor || 30, 2), 170);
+    }
+    applyEnv();
+  }
+
   /* Environment: a neutral studio. Same in every theme because the stage backdrop is a fixed gray. */
   var envRT = null;
   function setEnv() {
@@ -809,6 +950,8 @@ body { margin: 0; }
      in high quality, and in standard too when the settings say so. */
   var envCustom = null, envCustomBoth = false;
   function applyEnv() {
+    var photo = !!(panoTex && envCustom && (HQ || envCustomBoth));
+    groundMat.uniforms.usePano.value = photo ? 1 : 0; stage.classList.toggle('photo', photo);
     if (!envRT) return;
     scene.environment = envCustom && (HQ || envCustomBoth) ? envCustom.texture : HQ ? studioEnv() : envRT.texture;
   }
@@ -859,7 +1002,7 @@ body { margin: 0; }
   }
   function useCustomEnv(rt, both) { if (envCustom) envCustom.dispose(); envCustom = rt; envCustomBoth = !!both; applyEnv(); }
   function loadLighting(L, both) {         /* L = { file, brightness, rotation } */
-    if (!L || !L.file) { useCustomEnv(null, false); return Promise.resolve(); }
+    if (!L || !L.file) { useCustomEnv(null, false); usePano(null); return Promise.resolve(); }
     var hdr = /\.hdr(\?.*)?$/i.test(L.file);
     return fetch(L.file).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return hdr ? r.arrayBuffer() : r.blob(); })
       .then(function (body) {
@@ -871,8 +1014,8 @@ body { margin: 0; }
           img.src = url;
         });
       })
-      .then(function (p) { useCustomEnv(envFromPixels(p, L.brightness, L.rotation), both); })
-      .catch(function (e) { console.warn('Lighting file ' + L.file + ' could not be used (' + e.message + '). Using the built-in studio.'); useCustomEnv(null, false); });
+      .then(function (p) { useCustomEnv(envFromPixels(p, L.brightness, L.rotation), both); usePano(L.background ? panoFromPixels(p, L) : null, L); })
+      .catch(function (e) { console.warn('Lighting file ' + L.file + ' could not be used (' + e.message + '). Using the built-in studio.'); useCustomEnv(null, false); usePano(null); });
   }
   /* High quality studio: a darker room with tall strip lights either side and a soft box overhead,
      which gives the long highlights down the side of a glass. Built the first time it is needed. */
@@ -2146,7 +2289,8 @@ body { margin: 0; }
      artwork: the sample buttons, in order. Each is your own image { name, image (data URL), width (% of the print area), default }
               or one of the built-in samples { builtin: 'botanical' | 'deco' | 'banded' | 'dots' | 'label', default }.
               Older files without built-in entries show all five after their own, unless builtin_samples is false.
-     lighting: { active, also_standard, list: [{ name, file, brightness, rotation }] } */
+     lighting: { active, also_standard, list: [{ name, file, brightness, rotation, background, blur, floor, bg_brightness }] },
+     shadow: { darkness, softness, reach } */
   var settingsReady = Promise.resolve(), bgChosen = false;   /* bgChosen: the visitor, or the address, picked a background */
   /* ---------- Look and wording from the catalogue settings ----------
      theme: { bg, panel, text, accent, head_font, body_font, round }   text: { key: replacement wording }
@@ -2228,6 +2372,8 @@ body { margin: 0; }
     st = st || {};
     applyTheme(st.theme); applyText(st.text);
     if (/^#[0-9a-f]{6}$/i.test(st.background || '')) { STAGE0 = st.background.toLowerCase(); if (!bgChosen) setStage(STAGE0, false); }
+    var sh = st.shadow || {}, unit = function (v, d) { v = parseFloat(v); return isFinite(v) ? clamp(v, 0, 1) : d; };
+    SH = { darkness: unit(sh.darkness, 0.5), softness: unit(sh.softness, 0.5), reach: unit(sh.reach, 0.5) }; shSig = '';
     var L = st.lighting || {}, pickL = L.list && L.active != null && L.active >= 0 ? L.list[L.active] : null;
     loadLighting(pickL, L.also_standard);
     Object.keys(SAMPLES).forEach(function (k) { if (SAMPLES[k].custom) delete SAMPLES[k]; });
@@ -2355,7 +2501,7 @@ body { margin: 0; }
     HQ = !!on && renderer.capabilities.isWebGL2;
     renderer.toneMapping = HQ ? THREE.NoToneMapping : THREE.ACESFilmicToneMapping;   /* nothing is brighter than white here, and what shows through the glass must match what shows beside it */
     applyEnv();
-    backdrop.visible = shadowHQ.visible = HQ; shadow.visible = !HQ;
+    backdrop.visible = true; shadowHQ.visible = shadow.visible = false;   /* the dome carries the background and the shadow in both qualities */
     key.intensity = HQ ? 0.42 : 0.55; waxMat.envMapIntensity = HQ ? 0.5 : 1;
     /* the far side of the print is seen through the glass, so in high quality it is drawn solid for the glass to bend */
     SIDES.forEach(function (d) { var m = d.mats[0]; m.transparent = !HQ; m.alphaTest = HQ ? 0.5 : 0; m.depthWrite = HQ; });
@@ -2387,7 +2533,7 @@ body { margin: 0; }
     stage.style.setProperty('--stage', STAGE);
     stage.style.setProperty('--stage-fg', dark ? '#ffffff' : '#1b1f23'); stage.style.setProperty('--stage-muted', dark ? '#c9cdd1' : '#30363b');
     stage.classList.toggle('dark', dark);
-    backdrop.material.color.set(STAGE).convertSRGBToLinear();
+    groundMat.uniforms.col.value.set(STAGE).convertSRGBToLinear();
     var flipped = dark !== stageDark; stageDark = dark;
     drawShadowHQ(); shadowTex.needsUpdate = true;
     if (flipped && G) buildDecal();           /* the dashed print-area lines are redrawn light or dark */
@@ -2445,6 +2591,7 @@ body { margin: 0; }
         if (u >= 1 || dragging) turn = null;
       }
       watchSpeed((now - last0) / 1000); tintGuides(dt);
+      renderContact();
       renderer.render(scene, camera);
       updateOverlay(); updateGumball();
       requestAnimationFrame(frame);
