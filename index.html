@@ -171,6 +171,8 @@ body {
 .bgpop input[aria-invalid="true"] { border-color: #ff8a80; }
 .bgpop button { font: 600 12px var(--font-ui); padding: 7px 9px; border: 0; border-radius: calc(7px * var(--round)); background: transparent; color: #ffffff; cursor: pointer; }
 .bgpop button:hover { background: rgba(255,255,255,0.14); }
+.bgpop .roombtn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid rgba(255,255,255,0.3); }
+.bgpop .roombtn[aria-pressed="true"] { background: #ffffff; color: #1b1f23; border-color: #ffffff; }
 .bgpop :focus-visible { outline: 2px solid #ffffff; outline-offset: 1px; }
 /* on a dark background the stage controls flip to light */
 .viewbar .tool.solid, .viewbar .tool.solid:hover { background: #ffffff; border-color: #ffffff; color: #1b1f23; box-shadow: 0 1px 4px rgba(0,0,0,0.18); }
@@ -447,7 +449,8 @@ body { margin: 0; }
       <button class="tool" id="modeBtn" type="button" aria-pressed="false" aria-label="Candle mode" data-tip="Switch to candle"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 2h9l-1 12h-7z"/><path d="M4 7h8"/></svg></button>
       <div class="bgwrap">
         <button class="tool" id="bgBtn" type="button" aria-expanded="false" aria-label="Background color" data-tip="Background"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.8c2.6 3 4.3 5.2 4.3 7.4A4.3 4.3 0 0 1 8 13.6a4.3 4.3 0 0 1-4.3-4.4c0-2.2 1.7-4.4 4.3-7.4z"/></svg></button>
-        <div class="bgpop" id="bgPop" role="group" aria-label="Background color" hidden>
+        <div class="bgpop" id="bgPop" role="group" aria-label="Background" hidden>
+          <button type="button" id="bgRoom" class="roombtn" aria-pressed="false" hidden><svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12.5h13"/><path d="M3 12.5V5l5-3 5 3v7.5"/><path d="M6.5 12.5V9h3v3.5"/></svg><span>Room</span></button>
           <input type="color" id="bgCol" value="#b2b6ba" aria-label="Background color">
           <input type="text" id="bgHex" value="#B2B6BA" maxlength="7" spellcheck="false" autocomplete="off" aria-label="Background hex code">
           <button type="button" id="bgReset">Reset</button>
@@ -880,7 +883,8 @@ body { margin: 0; }
   }
 
   /* The panorama as a picture, separate from the lighting it gives: optionally softened, so it reads as a background. */
-  var panoTex = null;
+  var panoTex = null, roomOn = true;      /* roomOn: the customer's choice, panorama or plain color */
+  try { if (localStorage.getItem('gv-room') === '0') roomOn = false; } catch (e) {}
   function panoFromPixels(p, L) {
     var blur = Math.min(Math.max(+L.blur || 0, 0), 1), W = blur > 0 ? 1024 : Math.min(2048, p.w), H = W / 2;
     var sx = p.w / W, sy = p.h / H, rgb = new Float32Array(W * H * 3);
@@ -950,7 +954,8 @@ body { margin: 0; }
      in high quality, and in standard too when the settings say so. */
   var envCustom = null, envCustomBoth = false;
   function applyEnv() {
-    var photo = !!(panoTex && envCustom && (HQ || envCustomBoth));
+    var photo = !!(panoTex && roomOn);
+    var rb = document.getElementById('bgRoom'); if (rb) { rb.hidden = !panoTex; rb.setAttribute('aria-pressed', photo ? 'true' : 'false'); }
     groundMat.uniforms.usePano.value = photo ? 1 : 0; stage.classList.toggle('photo', photo);
     if (!envRT) return;
     scene.environment = envCustom && (HQ || envCustomBoth) ? envCustom.texture : HQ ? studioEnv() : envRT.texture;
@@ -1001,10 +1006,9 @@ body { margin: 0; }
     return rt;
   }
   function useCustomEnv(rt, both) { if (envCustom) envCustom.dispose(); envCustom = rt; envCustomBoth = !!both; applyEnv(); }
-  function loadLighting(L, both) {         /* L = { file, brightness, rotation } */
-    if (!L || !L.file) { useCustomEnv(null, false); usePano(null); return Promise.resolve(); }
-    var hdr = /\.hdr(\?.*)?$/i.test(L.file);
-    return fetch(L.file).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return hdr ? r.arrayBuffer() : r.blob(); })
+  function panoPixels(file) {               /* a .hdr, .jpg or .png from the website, as linear pixels */
+    var hdr = /\.hdr(\?.*)?$/i.test(file);
+    return fetch(file).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return hdr ? r.arrayBuffer() : r.blob(); })
       .then(function (body) {
         if (hdr) return parseHDR(body);
         return new Promise(function (ok, no) {
@@ -1013,9 +1017,21 @@ body { margin: 0; }
           img.onerror = function () { URL.revokeObjectURL(url); no(new Error('not an image')); };
           img.src = url;
         });
-      })
-      .then(function (p) { useCustomEnv(envFromPixels(p, L.brightness, L.rotation), both); usePano(L.background ? panoFromPixels(p, L) : null, L); })
-      .catch(function (e) { console.warn('Lighting file ' + L.file + ' could not be used (' + e.message + '). Using the built-in studio.'); useCustomEnv(null, false); usePano(null); });
+      });
+  }
+  var pixCache = {};                       /* the same file used for lighting and background is fetched once */
+  function pixelsOf(file) { return pixCache[file] || (pixCache[file] = panoPixels(file)); }
+  function loadLighting(L, both) {         /* L = { file, brightness, rotation } */
+    if (!L || !L.file) { useCustomEnv(null, false); return Promise.resolve(); }
+    return pixelsOf(L.file)
+      .then(function (p) { useCustomEnv(envFromPixels(p, L.brightness, L.rotation), both); })
+      .catch(function (e) { console.warn('Lighting file ' + L.file + ' could not be used (' + e.message + '). Using the built-in studio.'); useCustomEnv(null, false); });
+  }
+  function loadBackdrop(B) {               /* B = a lighting entry marked "show as background" */
+    if (!B || !B.file) { usePano(null); return Promise.resolve(); }
+    return pixelsOf(B.file)
+      .then(function (p) { usePano(panoFromPixels(p, B), B); })
+      .catch(function (e) { console.warn('Background file ' + B.file + ' could not be used (' + e.message + '). Using the plain color.'); usePano(null); });
   }
   /* High quality studio: a darker room with tall strip lights either side and a soft box overhead,
      which gives the long highlights down the side of a glass. Built the first time it is needed. */
@@ -2290,6 +2306,7 @@ body { margin: 0; }
               or one of the built-in samples { builtin: 'botanical' | 'deco' | 'banded' | 'dots' | 'label', default }.
               Older files without built-in entries show all five after their own, unless builtin_samples is false.
      lighting: { active, also_standard, list: [{ name, file, brightness, rotation, background, blur, floor, bg_brightness }] },
+       (the active entry lights the glass; the active one if it is marked background, otherwise the first marked one, sits behind it)
      shadow: { darkness, softness, reach } */
   var settingsReady = Promise.resolve(), bgChosen = false;   /* bgChosen: the visitor, or the address, picked a background */
   /* ---------- Look and wording from the catalogue settings ----------
@@ -2376,6 +2393,8 @@ body { margin: 0; }
     SH = { darkness: unit(sh.darkness, 0.5), softness: unit(sh.softness, 0.5), reach: unit(sh.reach, 0.5) }; shSig = '';
     var L = st.lighting || {}, pickL = L.list && L.active != null && L.active >= 0 ? L.list[L.active] : null;
     loadLighting(pickL, L.also_standard);
+    var bgL = pickL && pickL.background ? pickL : (L.list || []).filter(function (e) { return e && e.background && e.file; })[0] || null;
+    loadBackdrop(bgL);
     Object.keys(SAMPLES).forEach(function (k) { if (SAMPLES[k].custom) delete SAMPLES[k]; });
     var isBuiltIn = function (a) { return a && a.builtin && SAMPLES[a.builtin] && !SAMPLES[a.builtin].custom; };
     var list = (st.artwork || []).filter(function (a) { return a && (a.image || isBuiltIn(a)); });
@@ -2540,10 +2559,15 @@ body { margin: 0; }
     $('bgCol').value = STAGE; $('bgHex').value = STAGE.toUpperCase(); $('bgHex').removeAttribute('aria-invalid');
     if (save) { bgChosen = true; try { localStorage.setItem('gv-bg', STAGE); } catch (e) {} }
   }
-  pairHex($('bgCol'), $('bgHex'), function (hex) { setStage(hex, true); });
+  pairHex($('bgCol'), $('bgHex'), function (hex) { setStage(hex, true); if (roomOn && panoTex) setRoom(false); });   /* picking a color means a plain background */
+  function setRoom(on) {
+    roomOn = on; try { localStorage.setItem('gv-room', on ? '1' : '0'); } catch (e) {}
+    applyEnv();
+  }
+  $('bgRoom').addEventListener('click', function () { setRoom(!roomOn); });
   function showBg(on) { $('bgPop').hidden = !on; $('bgBtn').setAttribute('aria-expanded', on ? 'true' : 'false'); }
   $('bgBtn').addEventListener('click', function (e) { e.stopPropagation(); showBg($('bgPop').hidden); });
-  $('bgReset').addEventListener('click', function () { setStage(STAGE0, false); bgChosen = false; try { localStorage.removeItem('gv-bg'); } catch (e) {} });
+  $('bgReset').addEventListener('click', function () { setStage(STAGE0, false); bgChosen = false; try { localStorage.removeItem('gv-bg'); localStorage.removeItem('gv-room'); } catch (e) {} roomOn = true; applyEnv(); });
   $('bgPop').addEventListener('pointerdown', function (e) { e.stopPropagation(); });
   document.addEventListener('pointerdown', function (e) { if (!$('bgPop').hidden && !e.target.closest('#bgPop, #bgBtn')) showBg(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('bgPop').hidden) { showBg(false); $('bgBtn').focus(); } });

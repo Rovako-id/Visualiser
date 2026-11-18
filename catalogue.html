@@ -726,8 +726,11 @@ body { margin: 0; }
       fl.addEventListener('input', function () { var v = num(fl.value); e.floor = v == null ? 30 : v; touched(); });
       bb.addEventListener('input', function () { var v = num(bb.value); e.bg_brightness = v == null || v <= 0 ? 1 : v; touched(); redraw(); });
       bgo.appendChild(field('s4', 'Softness (sharp to blurred)', bl)); bgo.appendChild(field('s4', 'Camera height above the floor, cm', fl)); bgo.appendChild(field('s4', 'Background brightness ×', bb));
-      bgo.appendChild(el('div', 'meta', 'The lower half of the panorama becomes the floor the glass stands on. If the floor looks stretched or the glass looks too big for the room, change the camera height: about where the panorama was shot from (table height for a table-top shot). A blurred background keeps the attention on the glass and hides a low-resolution file.'));
-      bgc.addEventListener('change', function () { e.background = bgc.checked; bgo.hidden = !bgc.checked; touched(); redraw(); });
+      bgo.appendChild(el('div', 'meta', 'This panorama sits behind the glass even when another one is chosen for the lighting, so a plain studio can light the glass while a room shows behind it. Customers can switch between it and a plain color with the background button on the 3D view. The lower half of the panorama becomes the floor the glass stands on. If the floor looks stretched or the glass looks too big for the room, change the camera height: about where the panorama was shot from (table height for a table-top shot). A blurred background keeps the attention on the glass and hides a low-resolution file.'));
+      bgc.addEventListener('change', function () {   /* one background at a time: ticking this one unticks the others */
+        if (bgc.checked) L.list.forEach(function (o) { if (o !== e) o.background = false; });
+        e.background = bgc.checked; touched(); renderEnv();
+      });
       f.appendChild(bgo);
       var b = el('button', 'icon'); b.type = 'button'; b.innerHTML = ICON.del; b.title = 'Remove'; b.setAttribute('aria-label', 'Remove: ' + e.name);
       b.addEventListener('click', function () { L.list.splice(i, 1); L.active = L.active === i ? -1 : L.active > i ? L.active - 1 : L.active; touched(); renderEnv(); });
