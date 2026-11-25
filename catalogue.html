@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="version" content="2026-11-18">
-<!-- Version 11-18 (18 November 2026) -->
+<meta name="version" content="2026-11-25">
+<!-- Version 11-25 (25 November 2026) -->
 <title>Glass Catalogue</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -111,6 +111,21 @@ input[aria-invalid="true"] { border-color: #b3261e; box-shadow: 0 0 0 1px #b3261
 .panobox .meta { color: #e6e8ea; text-align: center; }
 #sgThumb .thumb { width: 132px; height: 186px; }
 #simplePanel .rowact { gap: 8px; }
+.scard.sgcard { grid-template-columns: 280px minmax(0, 1fr) auto; }
+.sgdraw { display: grid; gap: 6px; justify-items: start; }
+#sgPlot { width: 280px; height: 300px; display: block; background: var(--field); border: 1px solid var(--line); border-radius: 10px; touch-action: none; user-select: none; }
+#sgPlot .body { fill: var(--band); fill-opacity: 0.16; stroke: currentColor; stroke-width: 1.3; stroke-linejoin: round; }
+#sgPlot .axis { stroke: var(--muted); stroke-width: 0.8; stroke-dasharray: 4 3; }
+#sgPlot .ground { stroke: var(--muted); stroke-width: 0.8; }
+#sgPlot .dim { stroke: var(--muted); stroke-width: 0.8; stroke-dasharray: 3 3; fill: none; }
+#sgPlot text { font: 500 10.5px var(--font-mono); fill: var(--fg); }
+#sgPlot text.tag { fill: var(--accent-fg, #fff); }
+#sgPlot .tagbg { fill: var(--accent); }
+#sgPlot .h { fill: var(--panel); stroke: var(--accent); stroke-width: 1.6; cursor: grab; }
+#sgPlot .h:hover, #sgPlot .h.on { fill: var(--accent); }
+#sgPlot .h:focus-visible { outline: none; stroke-width: 3; }
+#sgPlot .hit { fill: transparent; cursor: grab; }
+#sgPlot.drag, #sgPlot.drag .h, #sgPlot.drag .hit { cursor: grabbing; }
 #simplePanel .seg { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 430px; }
 .f.s5 { grid-column: span 5; } .f.s7 { grid-column: span 7; }
 .scard .nopic { display: grid; place-items: center; color: var(--muted); font-size: 12px; text-align: center; padding: 4px; background: var(--field); }
@@ -191,7 +206,8 @@ body.dropping .wrap { outline: 3px dashed var(--accent); outline-offset: 8px; bo
   .wrow { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .scard { grid-template-columns: 96px minmax(0, 1fr); }
   .scard .pic { width: 96px; height: 54px; }
-  .scard.env { grid-template-columns: minmax(0, 1fr); }
+  .scard.env, .scard.sgcard { grid-template-columns: minmax(0, 1fr); }
+  #sgPlot, .sgdraw { width: 100%; }
   .pano { width: 100%; height: auto; aspect-ratio: 2 / 1; }
   .scard .rowact { grid-column: 1 / -1; grid-auto-flow: column; justify-content: end; }
   .f.s4, .f.s6 { grid-column: 1 / -1; } .f.s3, .f.s2 { grid-column: span 6; }
@@ -233,8 +249,12 @@ body { margin: 0; }
   <section class="page" id="page-glasses">
   <section class="intro" id="simplePanel" hidden>
     <p id="sgLede">A straight or tapered glass drawn from its measurements, with no Rhino step. Everything is in millimetres, and the diameters are across the outside of the glass.</p>
-    <div class="scard">
-      <div id="sgThumb"></div>
+    <div class="scard sgcard">
+      <div class="sgdraw">
+        <svg id="sgPlot" role="img" aria-label="Section of the glass with draggable corner handles"></svg>
+        <div class="meta">Drag a round handle on the drawing to round that corner. The glass is revolved, so both sides match.</div>
+        <button class="linkbtn" id="sgCorners0" type="button">Square all corners</button>
+      </div>
       <div class="fields">
         <label class="f s7"><span>Name</span><input id="sgName" type="text" autocomplete="off"></label>
         <label class="f s5"><span>Code (id)</span><input id="sgId" type="text" autocomplete="off" spellcheck="false"></label>
@@ -253,6 +273,7 @@ body { margin: 0; }
         <label class="f s3"><span>Base thickness</span><input id="sgSham" type="number" min="0.5" max="120" step="0.5" inputmode="decimal" value="8"></label>
         <label class="f s3"><span>Inside fillet</span><input id="sgFillet" type="number" min="0" max="60" step="0.5" inputmode="decimal" value="4"></label>
         <label class="f s3"><span>Base edge radius</span><input id="sgEdge" type="number" min="0" max="60" step="0.5" inputmode="decimal" value="1.5"></label>
+        <label class="f s3"><span>Rim rounding</span><input id="sgRim" type="number" min="0" max="15" step="0.1" inputmode="decimal" value="1"></label>
         <div class="meta" id="sgMeta"></div>
         <p class="problems" id="sgProb" hidden></p>
       </div>
@@ -886,12 +907,24 @@ body { margin: 0; }
     var riTop = rt - w, riFloor = rb + (rt - rb) * (sh / H) - w;
     if (riTop < 1 || riFloor < 1) bad.push('The wall is too thick for these diameters: there is no cavity left.');
     if (bad.length) return { bad: bad };
-    var outer = [[0, 0]], up = unit(rt - rb, H);
-    var oe = filletArc([rb, 0], [-1, 0], up, Math.min(v.edge, rb * 0.6, H * 0.2), 6);
+    var up = unit(rt - rb, H), upIn = unit(riTop - riFloor, H - sh), dn = [-up[0], -up[1]], dnIn = [-upIn[0], -upIn[1]];
+    /* each corner: where it is, the two directions leaving it, and the largest radius that still fits */
+    var C = {
+      edge:   { c: [rb, 0], u1: [-1, 0], u2: up, max: Math.min(rb * 0.9, H * 0.4, sh * 1.5 + 2), n: 8 },
+      fillet: { c: [riFloor, sh], u1: [-1, 0], u2: upIn, max: Math.min(riFloor * 0.9, (H - sh) * 0.6), n: 10 },
+      rim:    { c: [rt, H], u1: dn, u2: [-1, 0], max: w * 0.48, n: 6 },
+      rimIn:  { c: [riTop, H], u1: [1, 0], u2: dnIn, max: w * 0.48, n: 6 }
+    };
+    var rad = { edge: v.edge, fillet: v.fillet, rim: v.rim, rimIn: v.rim };
+    Object.keys(C).forEach(function (k) { C[k].f = Math.max(0, Math.min(+rad[k] || 0, C[k].max)); });
+    var arc = function (k) { var q = C[k]; return filletArc(q.c, q.u1, q.u2, q.f, q.n); };
+    var outer = [[0, 0]], oe = arc('edge');
     if (oe) outer = outer.concat(oe); else outer.push([rb, 0]);
-    outer.push([rt, H]);
-    var inner = [[riTop, H]], upIn = unit(riTop - riFloor, H - sh);
-    var ie = filletArc([riFloor, sh], [-1, 0], upIn, Math.min(v.fillet, riFloor * 0.8, (H - sh) * 0.3), 8);
+    var ro = arc('rim');
+    if (ro) outer = outer.concat(ro); else outer.push([rt, H]);
+    var inner = [], ri = arc('rimIn');
+    if (ri) inner = inner.concat(ri); else inner.push([riTop, H]);
+    var ie = arc('fillet');
     if (ie) inner = inner.concat(ie.slice().reverse()); else inner.push([riFloor, sh]);
     inner.push([0, sh]);
     var ml = 0;
@@ -900,11 +933,11 @@ body { margin: 0; }
       ml += Math.PI / 3 * (a[0] * a[0] + a[0] * b[0] + b[0] * b[0]) * (b[1] - a[1]);
     }
     var r2 = function (p) { return p.map(function (q) { return [Math.round(Math.max(q[0], 0) * 100) / 100, Math.round(q[1] * 100) / 100]; }); };
-    return { outer: r2(outer), inner: r2(inner), ml: Math.abs(ml) / 1000 };
+    return { outer: r2(outer), inner: r2(inner), ml: Math.abs(ml) / 1000, corners: C, rawOuter: outer, rawInner: inner };
   }
 
   var sgCat = 'drinkware', sgEditing = null, sgCapAuto = null;
-  var SGF = [['sgH', 'h'], ['sgTop', 'top'], ['sgBase', 'base'], ['sgWall', 'wall'], ['sgSham', 'sham'], ['sgFillet', 'fillet'], ['sgEdge', 'edge']];
+  var SGF = [['sgH', 'h'], ['sgTop', 'top'], ['sgBase', 'base'], ['sgWall', 'wall'], ['sgSham', 'sham'], ['sgFillet', 'fillet'], ['sgEdge', 'edge'], ['sgRim', 'rim']];
   function sgValues() {
     var v = {};
     SGF.forEach(function (f) { v[f[1]] = num($(f[0]).value) || 0; });
@@ -913,7 +946,7 @@ body { margin: 0; }
   function sgDraw() {
     var v = sgValues(), r = simpleShape(v), prob = $('sgProb');
     if (r.bad) {
-      $('sgThumb').textContent = ''; $('sgMeta').textContent = '';
+      $('sgPlot').innerHTML = ''; $('sgMeta').textContent = '';
       prob.hidden = false; prob.textContent = r.bad.join(' '); $('sgSave').disabled = true;
       return null;
     }
@@ -924,7 +957,7 @@ body { margin: 0; }
     var raw = { id: $('sgId').value.trim(), name: $('sgName').value.trim(), category: sgCat,
                 capacity_ml: num(cap.value) || auto, outer: r.outer, inner: r.inner, simple: v };
     var it = wrap(raw), ps = printSize(it);
-    $('sgThumb').innerHTML = thumb(it);
+    sgPlot(v, r);
     $('sgMeta').textContent = 'Brim full ' + Math.round(r.ml) + ' ml · ' + (units === 'imperial' ? flOz(r.ml) + ' · ' : '') +
       'height ' + fLen(it.H) + ' · inside Ø at the rim ' + fLen((v.top - 2 * v.wall)) + (ps ? ' · print area ' + fArea(ps[0], ps[1]) : '');
     var p = [];
@@ -935,11 +968,95 @@ body { margin: 0; }
     $('sgSave').disabled = !raw.name || !raw.id;
     return raw;
   }
+  /* Big section drawing. Each corner has a handle sitting on its rounded edge: drag it into the corner to
+     square it, away to round it more. The two rim corners share one value. */
+  var SGK = { edge: 'sgEdge', fillet: 'sgFillet', rim: 'sgRim', rimIn: 'sgRim' }, sgView = null, sgSel = null;
+  var SGNAME = { edge: 'Base edge', fillet: 'Inside fillet', rim: 'Rim', rimIn: 'Rim' };
+  function handlePos(q) {                  /* the middle of the arc, or the corner itself when square */
+    var b = unit(q.u1[0] + q.u2[0], q.u1[1] + q.u2[1]);
+    var a = Math.acos(Math.max(-1, Math.min(1, q.u1[0] * q.u2[0] + q.u1[1] * q.u2[1])));
+    var k = 1 / Math.sin(a / 2) - 1;       /* distance from the corner to the arc's middle, per mm of radius */
+    return { p: [q.c[0] + b[0] * q.f * k, q.c[1] + b[1] * q.f * k], b: b, k: k };
+  }
+  function sgPlot(v, r) {
+    var svg = $('sgPlot'), W = 280, Hp = 300, padT = 30, padB = 34, padX = 44;
+    var H = v.h, R = Math.max(v.top, v.base) / 2;
+    var s = Math.min((Hp - padT - padB) / H, (W - 2 * padX) / (2 * R)), cx = W / 2, by = Hp - padB;
+    sgView = { s: s, cx: cx, by: by };
+    var X = function (x) { return (cx + x * s).toFixed(1); }, Y = function (h) { return (by - h * s).toFixed(1); };
+    var loop = r.rawOuter.concat(r.rawInner);
+    var right = loop.map(function (p) { return X(p[0]) + ' ' + Y(p[1]); });
+    var left = loop.slice().reverse().map(function (p) { return X(-p[0]) + ' ' + Y(p[1]); });
+    var o = '<line class="ground" x1="10" x2="' + (W - 10) + '" y1="' + Y(0) + '" y2="' + Y(0) + '"/>' +
+      '<line class="axis" x1="' + cx + '" x2="' + cx + '" y1="' + (padT - 12) + '" y2="' + (by + 6) + '"/>' +
+      '<path class="body" d="M' + right.join('L') + 'Z"/><path class="body" d="M' + left.join('L') + 'Z"/>';
+    /* dimensions: top diameter above, height on the right, base diameter below */
+    var rt = v.top / 2, rb = v.base / 2, ty = +Y(H) - 12;
+    o += '<path class="dim" d="M' + X(-rt) + ' ' + ty + 'H' + X(rt) + '"/>' +
+      '<text x="' + cx + '" y="' + (ty - 4) + '" text-anchor="middle">Ø ' + fmtNum(v.top) + '</text>';
+    var hx = +X(Math.max(rt, rb)) + 14;
+    o += '<path class="dim" d="M' + hx + ' ' + Y(0) + 'V' + Y(H) + '"/>' +
+      '<text x="' + (hx + 4) + '" y="' + ((+Y(0) + +Y(H)) / 2 + 4) + '">' + fmtNum(v.h) + '</text>';
+    o += '<text x="' + cx + '" y="' + (by + 22) + '" text-anchor="middle">Ø ' + fmtNum(v.base) + '</text>';
+    /* handles */
+    Object.keys(r.corners).forEach(function (k) {
+      if (k === 'rimIn') return;            /* one handle for the rim: both rim corners share it */
+      var q = r.corners[k], hp = handlePos(q), px = X(hp.p[0]), py = Y(hp.p[1]);
+      o += '<circle class="hit" data-k="' + k + '" cx="' + px + '" cy="' + py + '" r="11"/>' +
+        '<circle class="h' + (sgSel === k || (sgSel && SGK[sgSel] === SGK[k]) ? ' on' : '') + '" data-k="' + k + '" cx="' + px + '" cy="' + py + '" r="5" tabindex="0" role="slider" aria-label="' + SGNAME[k] + ' radius" aria-valuemin="0" aria-valuemax="' + q.max.toFixed(1) + '" aria-valuenow="' + q.f.toFixed(1) + '"/>';
+    });
+    if (sgSel && r.corners[sgSel]) {        /* a label with the radius by the handle being moved */
+      var q2 = r.corners[sgSel], hp2 = handlePos(q2), lx = +X(hp2.p[0]), ly = +Y(hp2.p[1]);
+      var txt = SGNAME[sgSel] + ' R ' + q2.f.toFixed(1) + (q2.f >= q2.max - 0.05 ? ' (max)' : ''), tw = txt.length * 6.4 + 10;
+      var tx = Math.min(Math.max(lx - tw / 2, 4), W - tw - 4), tyy = ly < 40 ? ly + 14 : ly - 28;
+      o += '<rect class="tagbg" x="' + tx + '" y="' + tyy + '" width="' + tw + '" height="17" rx="5"/><text class="tag" x="' + (tx + 5) + '" y="' + (tyy + 12) + '">' + txt + '</text>';
+    }
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + Hp);
+    svg.innerHTML = o;
+    sgView.r = r;
+  }
+  function fmtNum(x) { return (Math.round(x * 10) / 10).toFixed(1); }
+  function sgToMm(e) {
+    var svg = $('sgPlot'), pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+    var q = pt.matrixTransform(svg.getScreenCTM().inverse());
+    return [(q.x - sgView.cx) / sgView.s, (sgView.by - q.y) / sgView.s];
+  }
+  function sgSet(k, f) {
+    var q = sgView.r.corners[k]; f = Math.max(0, Math.min(f, q.max));
+    $(SGK[k]).value = Math.round(f * 10) / 10;
+    sgDraw();
+  }
+  (function () {
+    var svg = $('sgPlot'), drag = null;
+    svg.addEventListener('pointerdown', function (e) {
+      var k = e.target.getAttribute && e.target.getAttribute('data-k');
+      if (!k || !sgView) { sgSel = null; sgDraw(); return; }
+      e.preventDefault(); svg.setPointerCapture(e.pointerId);
+      drag = k; sgSel = k; svg.classList.add('drag'); sgDraw();
+    });
+    svg.addEventListener('pointermove', function (e) {
+      if (!drag || !sgView) return;
+      var q = sgView.r.corners[drag], m = sgToMm(e), hp = handlePos(q);
+      var along = (m[0] - q.c[0]) * hp.b[0] + (m[1] - q.c[1]) * hp.b[1];   /* how far in from the corner, along its bisector */
+      sgSet(drag, along / hp.k);
+    });
+    var end = function () { if (drag) { drag = null; svg.classList.remove('drag'); } };
+    svg.addEventListener('pointerup', end); svg.addEventListener('pointercancel', end);
+    svg.addEventListener('focusin', function (e) { var k = e.target.getAttribute('data-k'); if (k && sgSel !== k) { sgSel = k; sgDraw(); var h = svg.querySelector('.h[data-k="' + k + '"]'); if (h) h.focus(); } });
+    svg.addEventListener('keydown', function (e) {           /* arrow keys nudge the focused corner */
+      var k = e.target.getAttribute('data-k'); if (!k || !sgView) return;
+      var d = { ArrowUp: 0.5, ArrowRight: 0.5, ArrowDown: -0.5, ArrowLeft: -0.5 }[e.key]; if (!d) return;
+      e.preventDefault(); sgSet(k, sgView.r.corners[k].f + (e.shiftKey ? d * 4 : d));
+      var h = svg.querySelector('.h[data-k="' + k + '"]'); if (h) h.focus();
+    });
+  })();
+  $('sgCorners0').addEventListener('click', function () { ['sgEdge', 'sgFillet', 'sgRim'].forEach(function (i) { $(i).value = 0; }); sgSel = null; sgDraw(); });
   function showSimple(on, it) {
     $('simplePanel').hidden = !on;
     if (!on) { sgEditing = null; return; }
     sgEditing = it || null; sgCapAuto = null;
-    var v = (it && it.raw.simple) || { h: 150, top: 64, base: 56, wall: 2.5, sham: 8, fillet: 4, edge: 1.5 };
+    var v = (it && it.raw.simple) || { h: 150, top: 64, base: 56, wall: 2.5, sham: 8, fillet: 4, edge: 1.5, rim: 1 };
+    if (v.rim == null) v.rim = 0;      /* glasses made before rim rounding keep a square rim */
     SGF.forEach(function (f) { $(f[0]).value = v[f[1]] == null ? '' : v[f[1]]; });
     $('sgName').value = it ? it.name : ''; $('sgId').value = it ? it.id : '';
     $('sgCap').value = it && it.ml ? it.ml : '';
